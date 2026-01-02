@@ -13,11 +13,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // ✅ NEW FEATURE IMPORTS
 import MarketPrices from "./components/MarketPrices";
 import CommunityForum from "./components/CommunityForum";
-import FarmerMap from "./components/FarmerMap"; //
+import FarmerMap from "./components/FarmerMap"; 
+import EquipmentMarketplace from "./components/EquipmentMarketplace"; // ✅ Import Equipment Module
 
 import { motion } from "framer-motion";
 import "./i18n"; 
-import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf, MapPinned } from "lucide-react";
+import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf, MapPinned, Tractor } from "lucide-react";
 
 // ANIMATED HERO SECTION & LANDING PAGE
 const Home = () => (
@@ -68,23 +69,23 @@ const Home = () => (
         >
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/20 blur-[100px] rounded-full animate-pulse"></div>
            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 p-6 rounded-3xl shadow-2xl transform rotate-3 hover:rotate-0 transition-all duration-500 max-w-sm w-full">
-                  <div className="flex items-center gap-4 mb-6">
-                      <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white"><ShieldCheck size={24}/></div>
-                      <div>
-                          <div className="h-2 w-24 bg-white/50 rounded mb-2"></div>
-                          <div className="h-2 w-16 bg-white/30 rounded"></div>
-                      </div>
-                  </div>
-                  <div className="space-y-3">
-                      <div className="h-4 w-full bg-white/10 rounded"></div>
-                      <div className="h-4 w-5/6 bg-white/10 rounded"></div>
-                      <div className="h-4 w-4/6 bg-white/10 rounded"></div>
-                  </div>
-                  <div className="mt-6 flex gap-3">
-                      <div className="h-10 w-full bg-emerald-500 rounded-xl opacity-80"></div>
-                  </div>
-              </div>
+             <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 p-6 rounded-3xl shadow-2xl transform rotate-3 hover:rotate-0 transition-all duration-500 max-w-sm w-full">
+                 <div className="flex items-center gap-4 mb-6">
+                     <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white"><ShieldCheck size={24}/></div>
+                     <div>
+                         <div className="h-2 w-24 bg-white/50 rounded mb-2"></div>
+                         <div className="h-2 w-16 bg-white/30 rounded"></div>
+                     </div>
+                 </div>
+                 <div className="space-y-3">
+                     <div className="h-4 w-full bg-white/10 rounded"></div>
+                     <div className="h-4 w-5/6 bg-white/10 rounded"></div>
+                     <div className="h-4 w-4/6 bg-white/10 rounded"></div>
+                 </div>
+                 <div className="mt-6 flex gap-3">
+                     <div className="h-10 w-full bg-emerald-500 rounded-xl opacity-80"></div>
+                 </div>
+             </div>
            </div>
         </motion.div>
       </div>
@@ -122,7 +123,7 @@ const Home = () => (
         </h3>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         
         {/* Weather Card */}
         <Link to="/weather" className="group relative bg-white border-2 border-blue-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
@@ -137,6 +138,23 @@ const Home = () => (
             </p>
             <div className="w-full py-3 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:text-white transition-all">
               Check Now <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
+        {/* Equipment Marketplace Card ✅ ADDED */}
+        <Link to="/equipment" className="group relative bg-white border-2 border-amber-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-amber-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-amber-200">
+              <Tractor size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-amber-700 transition-colors">Equipment Mandi</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Rent tractors, harvestors, and tools from nearby farmers. Or list your own equipment to earn extra income.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-amber-50 text-amber-700 font-bold flex items-center justify-center gap-2 group-hover:bg-amber-600 group-hover:text-white transition-all">
+              Rent or Buy <ArrowRight size={18} />
             </div>
           </div>
         </Link>
@@ -209,7 +227,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* ✅ ADDED: Resource Map Card - Teal Theme */}
+        {/* Resource Map Card */}
         <Link to="/map" className="group relative bg-white border-2 border-teal-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-teal-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-400 to-teal-600"></div>
           <div className="relative z-10">
@@ -301,12 +319,23 @@ function App() {
               } 
             />
             
-            {/* ✅ NEW RESOURCE MAP ROUTE */}
             <Route 
               path="/map" 
               element={
                 <ProtectedRoute>
                   <FarmerMap />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* ✅ NEW EQUIPMENT ROUTE */}
+            <Route 
+              path="/equipment" 
+              element={
+                <ProtectedRoute>
+                  <div className="pt-20"> {/* Padding for navbar */}
+                    <EquipmentMarketplace />
+                  </div>
                 </ProtectedRoute>
               } 
             />

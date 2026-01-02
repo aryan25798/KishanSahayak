@@ -5,16 +5,22 @@ import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where, upda
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, MessageCircle, Edit2, MapPin, FileText, XCircle } from "lucide-react"; // Added XCircle
+import { 
+  Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
+  Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
+  MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor
+} from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
 import ChatInterface from "./ChatInterface";
+import EquipmentMarketplace from "./EquipmentMarketplace"; // ✅ Imported Equipment Module
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("products");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+  const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: '' }
+
   // Data States
   const [products, setProducts] = useState([]);
   const [schemes, setSchemes] = useState([]);
@@ -47,6 +53,10 @@ const AdminDashboard = () => {
   const [marketChange, setMarketChange] = useState("up");
   const [editMarketId, setEditMarketId] = useState(null);
 
+  // Complaint Resolution State
+  const [resolvingId, setResolvingId] = useState(null);
+  const [replyText, setReplyText] = useState("");
+
   // Search & API States
   const [searchQuery, setSearchQuery] = useState("latest agriculture subsidy india 2026");
   const [webResults, setWebResults] = useState([]);
@@ -59,7 +69,13 @@ const AdminDashboard = () => {
   const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
   const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-  // 1. Security Check
+  // --- Helpers ---
+  const showToast = (message, type = "success") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  // --- Effects ---
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -71,35 +87,32 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  // 2. Fetch Data
   const fetchData = async () => {
     if (!user || user.email !== "admin@system.com") return;
 
     setLoading(true);
     try {
-      const pSnap = await getDocs(collection(db, "products"));
+      const [pSnap, sSnap, fSnap, cSnap, forumSnap, marketSnap, appSnap] = await Promise.all([
+        getDocs(collection(db, "products")),
+        getDocs(collection(db, "schemes")),
+        getDocs(query(collection(db, "users"), where("role", "==", "farmer"))),
+        getDocs(collection(db, "complaints")),
+        getDocs(collection(db, "forum_posts")),
+        getDocs(collection(db, "market_prices")),
+        getDocs(query(collection(db, "applications"), orderBy("appliedAt", "desc")))
+      ]);
+
       setProducts(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-      const sSnap = await getDocs(collection(db, "schemes"));
       setSchemes(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-      const fSnap = await getDocs(query(collection(db, "users"), where("role", "==", "farmer")));
       setFarmers(fSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-      const cSnap = await getDocs(collection(db, "complaints"));
       setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-      const forumSnap = await getDocs(collection(db, "forum_posts"));
       setForumPosts(forumSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-      const marketSnap = await getDocs(collection(db, "market_prices"));
       setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-      const appSnap = await getDocs(query(collection(db, "applications"), orderBy("appliedAt", "desc")));
       setApplications(appSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
     } catch (err) {
       console.error(err);
+      showToast("Failed to fetch dashboard data", "error");
     }
     setLoading(false);
   };
@@ -110,7 +123,8 @@ const AdminDashboard = () => {
     }
   }, [user]);
 
-  // Image Handling
+  // --- Handlers ---
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -128,16 +142,15 @@ const AdminDashboard = () => {
       return await getDownloadURL(imageRef);
     } catch (error) {
       console.error("Error uploading image: ", error);
-      alert("Image upload failed!");
+      showToast("Image upload failed", "error");
       return null;
     } finally {
       setUploading(false);
     }
   };
 
-  // Logic Functions
   const handleAddProduct = async () => {
-    if (!batchCode || !productName) return alert("Fill all fields");
+    if (!batchCode || !productName) return showToast("Please fill all fields", "error");
     const safeCode = batchCode.replace(/\//g, "-").toUpperCase(); 
     
     let imageUrl = null;
@@ -154,10 +167,10 @@ const AdminDashboard = () => {
          verificationDate: new Date().toISOString(),
          imageUrl: imageUrl 
        });
-       alert(`Product Added!`);
+       showToast("Product Added Successfully!");
        setBatchCode(""); setProductName(""); setProductImage(null); setImagePreview(null);
        fetchData(); 
-    } catch (e) { alert(e.message); }
+    } catch (e) { showToast(e.message, "error"); }
   };
 
   const searchWebSchemes = async () => {
@@ -166,8 +179,8 @@ const AdminDashboard = () => {
       const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(searchQuery)}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.items) { setWebResults(data.items); } else { alert("No results found."); }
-    } catch (error) { alert("Error searching web."); }
+      if (data.items) { setWebResults(data.items); } else { showToast("No results found.", "error"); }
+    } catch (error) { showToast("Error searching web.", "error"); }
     setSearching(false);
   };
 
@@ -176,8 +189,8 @@ const AdminDashboard = () => {
       await addDoc(collection(db, "schemes"), {
         title: item.title, description: item.snippet || "No description", category: "Imported Subsidy", link: item.link, timestamp: new Date()
       });
-      alert("✅ Scheme Imported!"); fetchData();
-    } catch (e) { alert("Error importing: " + e.message); }
+      showToast("Scheme Imported!"); fetchData();
+    } catch (e) { showToast("Error importing: " + e.message, "error"); }
   };
 
   const fetchGoogleImage = async (query) => {
@@ -185,12 +198,8 @@ const AdminDashboard = () => {
       const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&searchType=image&num=1`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.items && data.items.length > 0) {
-        return data.items[0].link; 
-      }
-    } catch (error) {
-      console.error("Google Image Fetch Error:", error);
-    }
+      if (data.items && data.items.length > 0) return data.items[0].link; 
+    } catch (error) { console.error("Google Image Fetch Error:", error); }
     return null;
   };
 
@@ -203,47 +212,38 @@ const AdminDashboard = () => {
         category: schemeCategory,
         imageUrl: imageUrl
       });
-      alert("Scheme Posted with Image!"); 
+      showToast("Scheme Posted with Image!"); 
       setSchemeTitle(""); setSchemeDesc(""); 
       fetchData();
-    } catch (e) { alert(e.message); }
+    } catch (e) { showToast(e.message, "error"); }
   };
 
-  // ✅ New Logic: Accept/Reject Applications
   const handleUpdateApplicationStatus = async (appId, newStatus) => {
     try {
-      await updateDoc(doc(db, "applications", appId), {
-        status: newStatus
-      });
-      // Optimistically update UI
-      setApplications(prev => prev.map(app => 
-        app.id === appId ? { ...app, status: newStatus } : app
-      ));
-      alert(`Application ${newStatus}!`);
+      await updateDoc(doc(db, "applications", appId), { status: newStatus });
+      setApplications(prev => prev.map(app => app.id === appId ? { ...app, status: newStatus } : app));
+      showToast(`Application ${newStatus}!`);
     } catch (error) {
       console.error("Error updating status:", error);
-      alert("Failed to update application status.");
+      showToast("Failed to update status", "error");
     }
   };
 
   const handleAddOrUpdateMarketPrice = async () => {
-    if (!marketCrop || !marketMandi || !marketPrice) return alert("Fill all fields");
+    if (!marketCrop || !marketMandi || !marketPrice) return showToast("Fill all fields", "error");
     try {
+      const payload = { crop: marketCrop, market: marketMandi, price: marketPrice, change: marketChange, timestamp: new Date() };
       if (editMarketId) {
-        await updateDoc(doc(db, "market_prices", editMarketId), {
-          crop: marketCrop, market: marketMandi, price: marketPrice, change: marketChange, timestamp: new Date()
-        });
-        alert("Market Price Updated!");
+        await updateDoc(doc(db, "market_prices", editMarketId), payload);
+        showToast("Market Price Updated!");
         setEditMarketId(null);
       } else {
-        await addDoc(collection(db, "market_prices"), {
-          crop: marketCrop, market: marketMandi, price: marketPrice, change: marketChange, timestamp: new Date()
-        });
-        alert("Market Price Added!");
+        await addDoc(collection(db, "market_prices"), payload);
+        showToast("Market Price Added!");
       }
       setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); 
       fetchData();
-    } catch (e) { alert(e.message); }
+    } catch (e) { showToast(e.message, "error"); }
   };
 
   const startEditPrice = (item) => {
@@ -256,25 +256,25 @@ const AdminDashboard = () => {
   };
 
   const handleDelete = async (col, id) => {
-    if(confirm("Delete this? This action cannot be undone.")) { 
+    if(window.confirm("Delete this item? This cannot be undone.")) { 
       try {
         await deleteDoc(doc(db, col, id)); 
         fetchData();
-        alert("Deleted successfully.");
+        showToast("Deleted successfully.");
       } catch(e) {
-        alert("Error deleting: " + e.message);
+        showToast("Error deleting: " + e.message, "error");
       }
     }
   };
 
   const handleResolveComplaint = async (id, farmerEmail, farmerName, originalMessage) => {
-    const reply = prompt("Enter your reply to the farmer:");
-    if (!reply) return;
+    if (!replyText) return showToast("Please enter a reply", "error");
 
+    setUploading(true); // Reusing uploading state for sending email loading
     try {
       await updateDoc(doc(db, "complaints", id), {
         status: "Resolved",
-        adminReply: reply
+        adminReply: replyText
       });
 
       const templateParams = {
@@ -283,73 +283,287 @@ const AdminDashboard = () => {
         complaint_id: id.slice(0, 5),
         user_message: originalMessage,
         status_message: "Your complaint has been RESOLVED.",
-        admin_reply: reply
+        admin_reply: replyText
       };
 
       await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-      alert(`Complaint Resolved! Email sent to ${farmerEmail}`);
+      showToast(`Complaint Resolved! Email sent to ${farmerEmail}`);
+      setResolvingId(null);
+      setReplyText("");
       fetchData();
     } catch (e) {
       console.error(e);
-      alert("Error resolving: " + e.message);
+      showToast("Error resolving: " + e.message, "error");
+    } finally {
+      setUploading(false);
     }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader className="animate-spin text-green-600" /></div>;
+  // --- Render Sections ---
+
+  const renderProducts = () => (
+    <div className="animate-fade-up">
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">Verified Products</h2>
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add New Batch</h3>
+        <div className="flex flex-col md:flex-row gap-4 items-start">
+          <div className="flex-1 w-full space-y-3">
+              <input value={batchCode} onChange={(e)=>setBatchCode(e.target.value.toUpperCase())} placeholder="Batch Code (e.g. BTC-2024)" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+              <input value={productName} onChange={(e)=>setProductName(e.target.value)} placeholder="Product Name" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <div className="flex flex-col items-center gap-2 w-full md:w-auto">
+              <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
+                  {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                      <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Upload</span></>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+              </label>
+          </div>
+          <button onClick={handleAddProduct} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-[128px] md:h-32 transition-colors shadow-sm">
+            {uploading ? <Loader className="animate-spin" /> : "Verify & Add"}
+          </button>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+         <div className="overflow-x-auto max-h-[600px]">
+           <table className="w-full text-left min-w-[600px]">
+              <thead className="bg-gray-50 border-b sticky top-0 z-10"><tr><th className="p-4">Img</th><th className="p-4">Code</th><th className="p-4">Name</th><th className="p-4">Action</th></tr></thead>
+              <tbody>
+                {products.map(p => (
+                  <tr key={p.id} className="border-b items-center hover:bg-gray-50 transition-colors">
+                      <td className="p-4">{p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover rounded-lg border" />}</td>
+                      <td className="p-4 font-mono text-blue-600 font-bold">{p.id}</td>
+                      <td className="p-4 font-medium">{p.name}</td>
+                      <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 size={18}/></button></td>
+                  </tr>
+                ))}
+              </tbody>
+           </table>
+         </div>
+      </div>
+    </div>
+  );
+
+  const renderSchemes = () => (
+    <div className="animate-fade-up">
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">Manage Schemes</h2>
+      <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-blue-100">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-800"><Globe size={20}/> Import from Google</h3>
+          <div className="flex gap-2 mb-4">
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Search subsidies..." />
+            <button onClick={searchWebSchemes} className="bg-blue-600 text-white px-4 rounded-xl font-bold hover:bg-blue-700 transition-colors" disabled={searching}>
+              {searching ? <Loader className="animate-spin" size={18} /> : <Search size={18} />}
+            </button>
+          </div>
+          {webResults.length > 0 && (
+            <div className="grid gap-2 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-blue-200">
+              {webResults.map((item, idx) => (
+                <div key={idx} className="bg-white p-3 rounded-lg border flex justify-between items-center group hover:shadow-md transition">
+                  <div className="flex-1 overflow-hidden"><h4 className="font-bold text-xs text-gray-800 truncate">{item.title}</h4></div>
+                  <button onClick={() => importScheme(item)} className="ml-2 bg-green-100 text-green-700 p-1.5 rounded hover:bg-green-600 hover:text-white transition"><Plus size={14} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold mb-4">Post Manually</h3>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <input value={schemeTitle} onChange={(e)=>setSchemeTitle(e.target.value)} placeholder="Scheme Title" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+              <select value={schemeCategory} onChange={(e)=>setSchemeCategory(e.target.value)} className="border p-3 rounded-xl outline-none bg-white text-sm">
+                <option value="Scheme">Scheme</option><option value="Subsidy">Subsidy</option><option value="Loan">Loan</option>
+              </select>
+            </div>
+            <textarea value={schemeDesc} onChange={(e)=>setSchemeDesc(e.target.value)} placeholder="Description" className="border p-3 rounded-xl w-full h-20 outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+            <button onClick={handleAddScheme} className="bg-green-600 text-white w-full py-3 rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm">Post Scheme</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        {schemes.map(s => (
+          <div key={s.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start hover:shadow-md transition">
+            <div className="flex gap-4">
+              {s.imageUrl && <img src={s.imageUrl} alt={s.title} className="w-16 h-16 object-cover rounded-lg border bg-gray-50" />}
+              <div>
+                <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2">{s.title} {s.category === "Imported Subsidy" && <Globe size={14} className="text-blue-500" />}</h4>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-2xl line-clamp-2">{s.description}</p>
+                <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 inline-block uppercase tracking-wider">{s.category}</span>
+              </div>
+            </div>
+            <button onClick={() => handleDelete("schemes", s.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={18} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderApplications = () => (
+    <div className="animate-fade-up">
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">Scheme Applications</h2>
+      <div className="grid gap-4">
+        {applications.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">No applications pending.</p> : applications.map(app => (
+          <div key={app.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">{app.applicantName}</h3>
+                <p className="text-gray-500 text-sm flex items-center gap-1"><Mail size={12}/> {app.applicantEmail}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                app.status === "Pending" ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
+                app.status === "Accepted" ? "bg-green-50 text-green-700 border-green-100" :
+                "bg-red-50 text-red-700 border-red-100"
+              }`}>
+                {app.status}
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-end">
+              <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-3 text-sm text-gray-600 border border-gray-100 w-full sm:w-auto">
+                <MapPin size={18} className="text-red-500 shrink-0"/>
+                <div>
+                  <span className="font-bold block text-gray-800">Scheme: {app.schemeTitle}</span>
+                  Lat: {app.location?.lat.toFixed(4)}, Lng: {app.location?.lng.toFixed(4)}
+                  <a href={`https://maps.google.com/?q=${app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">View Map</a>
+                </div>
+              </div>
+              {app.status === "Pending" && (
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button onClick={() => handleUpdateApplicationStatus(app.id, "Accepted")} className="flex-1 sm:flex-none bg-green-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition shadow-sm"><CheckCircle size={18}/> Accept</button>
+                  <button onClick={() => handleUpdateApplicationStatus(app.id, "Rejected")} className="flex-1 sm:flex-none bg-white text-red-600 border border-red-200 px-5 py-2 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2 transition"><XCircle size={18}/> Reject</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderComplaints = () => (
+    <div className="animate-fade-up">
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">Help Desk & Complaints</h2>
+      <div className="space-y-4">
+        {complaints.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl text-center">No active complaints.</p> : complaints.map(c => (
+           <div key={c.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4 hover:shadow-md transition">
+              <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status==="Resolved"?"bg-green-50 border-green-100 text-green-700":"bg-yellow-50 border-yellow-100 text-yellow-700"}`}>{c.status}</span>
+                         <h4 className="font-bold text-lg text-gray-800">{c.subject}</h4>
+                      </div>
+                      <p className="text-gray-700 text-sm mb-3 bg-gray-50 p-3 rounded-lg border border-gray-100">"{c.message}"</p>
+                      <div className="flex gap-4 text-xs text-gray-400 items-center">
+                         <span className="flex items-center gap-1"><Users size={12}/> {c.farmerName}</span>
+                         <span className="flex items-center gap-1"><Mail size={12}/> {c.email}</span>
+                      </div>
+                      {c.adminReply && (
+                         <div className="mt-4 pl-4 border-l-2 border-green-500">
+                             <span className="text-xs font-bold text-green-600 uppercase">Resolved with Reply:</span>
+                             <p className="text-gray-600 text-sm mt-1">{c.adminReply}</p>
+                         </div>
+                      )}
+                  </div>
+              </div>
+              
+              {/* Resolve Section */}
+              {c.status === "Pending" && (
+                <div className="mt-2 pt-4 border-t border-gray-100">
+                  {resolvingId === c.id ? (
+                    <div className="animate-in fade-in slide-in-from-top-2">
+                       <textarea 
+                          value={replyText} 
+                          onChange={(e) => setReplyText(e.target.value)} 
+                          placeholder="Type your reply to the farmer..." 
+                          className="w-full border p-3 rounded-xl mb-3 text-sm focus:ring-2 focus:ring-green-50 outline-none h-24"
+                       />
+                       <div className="flex gap-2 justify-end">
+                          <button onClick={() => { setResolvingId(null); setReplyText(""); }} className="px-4 py-2 text-gray-500 font-bold text-sm hover:bg-gray-100 rounded-lg">Cancel</button>
+                          <button onClick={() => handleResolveComplaint(c.id, c.email, c.farmerName, c.message)} disabled={uploading} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-green-700 flex items-center gap-2">
+                            {uploading ? <Loader className="animate-spin" size={16}/> : <><Send size={16}/> Send Reply</>}
+                          </button>
+                       </div>
+                    </div>
+                  ) : (
+                    <button 
+                       onClick={() => setResolvingId(c.id)}
+                       className="bg-gray-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center gap-2 transition self-start"
+                    >
+                       <MessageSquare size={16}/> Reply & Resolve
+                    </button>
+                  )}
+                </div>
+              )}
+           </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-gray-50"><Loader className="animate-spin text-green-600 mb-4" size={32} /><p className="text-gray-500 font-medium">Loading Dashboard...</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans pt-16">
       
+      {/* Toast Notification */}
+      {notification && (
+        <div className={`fixed top-24 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'error' ? 'bg-red-50 border border-red-100 text-red-700' : 'bg-white border border-green-100 text-green-700'}`}>
+          {notification.type === 'error' ? <AlertCircle size={20}/> : <CheckCircle size={20}/>}
+          <span className="font-bold">{notification.message}</span>
+        </div>
+      )}
+
       {/* Mobile Toggle Button */}
       <button 
         onClick={() => setIsSidebarOpen(true)}
-        className="md:hidden fixed bottom-6 right-6 z-50 bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform"
+        className="md:hidden fixed bottom-6 right-6 z-40 bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform"
       >
         <Menu size={24} />
       </button>
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white p-6 
+        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white p-6 
         transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0 md:fixed md:top-16 md:bottom-0 md:left-0 md:z-30
-        flex flex-col
+        flex flex-col h-[calc(100vh-4rem)] md:h-auto border-r border-gray-800
       `}>
         <div className="flex justify-between items-center mb-8 shrink-0">
-            <h2 className="text-2xl font-bold text-green-400 tracking-tight">Admin Panel</h2>
+            <h2 className="text-xl font-bold text-green-400 tracking-tight flex items-center gap-2"><Package size={24}/> Admin Panel</h2>
             <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white transition">
               <X size={24} />
             </button>
         </div>
 
-        <nav className="space-y-2 flex-1 overflow-y-auto min-h-0">
-          <button onClick={() => { setActiveTab("products"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "products" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <Package size={20} /> Products
-          </button>
-          <button onClick={() => { setActiveTab("schemes"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "schemes" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <ScrollText size={20} /> Schemes
-          </button>
-          <button onClick={() => { setActiveTab("applications"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "applications" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <FileText size={20} /> Applications
-          </button>
-          <button onClick={() => { setActiveTab("farmers"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "farmers" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <Users size={20} /> Farmers
-          </button>
-          <button onClick={() => { setActiveTab("complaints"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "complaints" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <MessageSquare size={20} /> Help Desk
-          </button>
-          <button onClick={() => { setActiveTab("market"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "market" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <TrendingUp size={20} /> Market Prices
-          </button>
-          <button onClick={() => { setActiveTab("forum"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "forum" ? "bg-green-600" : "hover:bg-gray-800"}`}>
-            <MessageCircle size={20} /> Community
-          </button>
+        <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+          {[
+            { id: "products", label: "Products", icon: Package },
+            { id: "schemes", label: "Schemes", icon: ScrollText },
+            { id: "applications", label: "Applications", icon: FileText },
+            { id: "farmers", label: "Farmers", icon: Users },
+            { id: "complaints", label: "Help Desk", icon: MessageSquare },
+            { id: "market", label: "Market Prices", icon: TrendingUp },
+            { id: "equipment", label: "Equipment", icon: Tractor }, // ✅ Added Equipment Tab
+            { id: "forum", label: "Community", icon: MessageCircle },
+          ].map((item) => (
+            <button 
+              key={item.id}
+              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} 
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all text-sm font-medium ${activeTab === item.id ? "bg-green-600 text-white shadow-lg shadow-green-900/20" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+            >
+              <item.icon size={18} /> {item.label}
+            </button>
+          ))}
         </nav>
         
         <div className="pt-4 border-t border-gray-800 mt-4 shrink-0">
-            <button onClick={() => auth.signOut()} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-600/20 text-red-400 transition-colors">
-                <LogOut size={20} /> Logout
+            <button onClick={() => auth.signOut()} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-sm font-bold">
+                <LogOut size={18} /> Logout
             </button>
         </div>
       </div>
@@ -363,331 +577,128 @@ const AdminDashboard = () => {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 p-6 lg:p-10 pb-24 overflow-y-auto md:ml-64">
+      <div className="flex-1 p-4 lg:p-8 pb-24 overflow-y-auto md:ml-64 max-w-7xl mx-auto w-full">
         
-        {/* Products Tab */}
-        {activeTab === "products" && (
-          <div className="animate-fade-up">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Verified Products</h2>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add New Batch</h3>
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="flex-1 w-full">
-                    <input value={batchCode} onChange={(e)=>setBatchCode(e.target.value.toUpperCase())} placeholder="Batch Code" className="border p-3 rounded-xl w-full outline-none mb-4 focus:ring-2 focus:ring-green-500" />
-                    <input value={productName} onChange={(e)=>setProductName(e.target.value)} placeholder="Product Name" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
-                </div>
-                <div className="flex flex-col items-center gap-2 w-full md:w-auto">
-                    <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
-                        {imagePreview ? (
-                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (
-                            <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Upload</span></>
-                        )}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                    </label>
-                </div>
-                <button onClick={handleAddProduct} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-fit self-end transition-colors shadow-lg">
-                  {uploading ? "Uploading..." : "Verify & Add"}
-                </button>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-gray-50 border-b"><tr><th className="p-4">Img</th><th className="p-4">Code</th><th className="p-4">Name</th><th className="p-4">Action</th></tr></thead>
-                    <tbody>
-                      {products.map(p => (
-                        <tr key={p.id} className="border-b items-center hover:bg-gray-50 transition-colors">
-                            <td className="p-4">{p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover rounded-lg border" />}</td>
-                            <td className="p-4 font-mono text-blue-600 font-bold">{p.id}</td>
-                            <td className="p-4 font-medium">{p.name}</td>
-                            <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 size={18}/></button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                 </table>
-               </div>
-            </div>
-          </div>
+        {activeTab === "products" && renderProducts()}
+        {activeTab === "schemes" && renderSchemes()}
+        {activeTab === "applications" && renderApplications()}
+        {activeTab === "complaints" && renderComplaints()}
+
+        {/* ✅ Equipment Tab Render */}
+        {activeTab === "equipment" && (
+           <div className="animate-fade-up">
+              <EquipmentMarketplace adminOverride={true} />
+           </div>
         )}
 
-        {/* Schemes Tab */}
-        {activeTab === "schemes" && (
-          <div className="animate-fade-up">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Manage Schemes</h2>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-blue-100 mb-8">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-800"><Globe size={20}/> Import from Google</h3>
-              <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search keywords..." />
-                <button onClick={searchWebSchemes} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors shadow-lg" disabled={searching}>
-                  {searching ? <Loader className="animate-spin" size={18} /> : <Search size={18} />} Fetch
-                </button>
-              </div>
-              {webResults.length > 0 && (
-                <div className="grid gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                  {webResults.map((item, idx) => (
-                    <div key={idx} className="bg-white p-3 rounded-lg border flex justify-between items-center group hover:shadow-md transition">
-                      <div className="flex-1"><h4 className="font-bold text-sm text-gray-800">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-1">{item.snippet}</p></div>
-                      <button onClick={() => importScheme(item)} className="ml-4 bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-600 hover:text-white transition flex items-center gap-1 text-xs font-bold"><Plus size={14} /> Add</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-              <h3 className="text-lg font-bold mb-4">Post Manually (Auto-Fetch Image)</h3>
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <input value={schemeTitle} onChange={(e)=>setSchemeTitle(e.target.value)} placeholder="Scheme Title" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500" />
-                  <select value={schemeCategory} onChange={(e)=>setSchemeCategory(e.target.value)} className="border p-3 rounded-xl outline-none bg-white focus:ring-2 focus:ring-green-500">
-                    <option value="Scheme">Scheme</option><option value="Subsidy">Subsidy</option><option value="Loan">Loan</option>
-                  </select>
-                </div>
-                <textarea value={schemeDesc} onChange={(e)=>setSchemeDesc(e.target.value)} placeholder="Description" className="border p-3 rounded-xl w-full h-20 outline-none focus:ring-2 focus:ring-green-500" />
-                <button onClick={handleAddScheme} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 w-full sm:w-auto shadow-lg transition-colors">Post Scheme</button>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              {schemes.map(s => (
-                <div key={s.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start hover:shadow-md transition">
-                  <div className="flex gap-4">
-                    {s.imageUrl && <img src={s.imageUrl} alt={s.title} className="w-20 h-20 object-cover rounded-lg border" />}
-                    <div>
-                      <h4 className="font-bold text-xl text-gray-800 mb-1 flex items-center gap-2">{s.title} {s.category === "Imported Subsidy" && <Globe size={14} className="text-blue-500" />}</h4>
-                      <p className="text-gray-500 text-sm leading-relaxed max-w-2xl">{s.description}</p>
-                      <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block">{s.category}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => handleDelete("schemes", s.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={20} /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ✅ APPLICATIONS TAB (With Accept/Reject) */}
-        {activeTab === "applications" && (
-          <div className="animate-fade-up">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Scheme Applications</h2>
-            <div className="space-y-4">
-              {applications.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl">No applications yet.</p> : applications.map(app => (
-                <div key={app.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">{app.applicantName}</h3>
-                      <p className="text-gray-500 text-sm flex items-center gap-1"><Mail size={12}/> {app.applicantEmail}</p>
-                    </div>
-                    {/* Status Badge */}
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
-                      app.status === "Pending" ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
-                      app.status === "Accepted" ? "bg-green-50 text-green-700 border-green-100" :
-                      "bg-red-50 text-red-700 border-red-100"
-                    }`}>
-                      {app.status === "Pending" ? `Applied for: ${app.schemeTitle}` : app.status}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row justify-between gap-4 items-end">
-                    <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-3 text-sm text-gray-600 border border-gray-100 w-full sm:w-auto">
-                      <MapPin size={18} className="text-red-500"/>
-                      <div>
-                        <span className="font-bold block text-gray-800">Location:</span>
-                        {app.location?.lat.toFixed(4)}, {app.location?.lng.toFixed(4)}
-                        <a href={`http://googleusercontent.com/maps.google.com/3{app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">Map</a>
-                      </div>
-                    </div>
-
-                    {/* ✅ Accept / Reject Buttons */}
-                    {app.status === "Pending" && (
-                      <div className="flex gap-2 w-full sm:w-auto">
-                        <button 
-                          onClick={() => handleUpdateApplicationStatus(app.id, "Accepted")}
-                          className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition"
-                        >
-                          <CheckCircle size={18}/> Accept
-                        </button>
-                        <button 
-                          onClick={() => handleUpdateApplicationStatus(app.id, "Rejected")}
-                          className="flex-1 sm:flex-none bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 flex items-center justify-center gap-2 transition"
-                        >
-                          <XCircle size={18}/> Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Farmers Tab */}
+        {/* Farmers Tab Render */}
         {activeTab === "farmers" && (
-          <div className="animate-fade-up relative">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Registered Farmers</h2>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-gray-50 border-b"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Actions</th></tr></thead>
-                    <tbody>
-                      {farmers.length === 0 ? (
-                          <tr><td colSpan="3" className="p-6 text-center text-gray-500">No farmers found.</td></tr>
-                      ) : (
-                          farmers.map(f => (
-                          <tr key={f.id} className="border-b hover:bg-gray-50 transition-colors">
-                              <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
-                              <td className="p-4 text-gray-600">{f.email}</td>
-                              <td className="p-4 flex items-center gap-2">
-                                  <a href={`mailto:${f.email}?subject=Message from Kisan Sahayak Admin`} className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-200 text-sm transition">
-                                      <Mail size={16} /> Contact
-                                  </a>
-                                  <button onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })} className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold hover:bg-green-200 text-sm transition">
-                                    <MessageSquare size={16} /> Chat
-                                  </button>
-                              </td>
-                          </tr>
-                          ))
-                      )}
-                    </tbody>
-                 </table>
+             <div className="animate-fade-up">
+               <h2 className="text-3xl font-bold mb-6 text-gray-800">Registered Farmers</h2>
+               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-left min-w-[600px]">
+                        <thead className="bg-gray-50 border-b"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Actions</th></tr></thead>
+                        <tbody>
+                          {farmers.map(f => (
+                             <tr key={f.id} className="border-b hover:bg-gray-50 transition-colors">
+                                 <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
+                                 <td className="p-4 text-gray-600">{f.email}</td>
+                                 <td className="p-4 flex items-center gap-2">
+                                     <button onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition">
+                                       <MessageSquare size={14} /> Chat
+                                     </button>
+                                 </td>
+                             </tr>
+                          ))}
+                        </tbody>
+                     </table>
+                   </div>
                </div>
-            </div>
-            {activeChat && (
-              <ChatInterface 
-                chatId={`chat_${activeChat.id}`} 
-                receiverName={activeChat.name}
-                isUserAdmin={true} 
-                onClose={() => setActiveChat(null)}
-              />
-            )}
-          </div>
+             </div>
         )}
 
-        {/* Complaints Tab */}
-        {activeTab === "complaints" && (
-          <div className="animate-fade-up">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Help Desk & Complaints</h2>
-            <div className="space-y-4">
-                {complaints.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl">No complaints found.</p> : complaints.map(c => (
-                   <div key={c.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start gap-4 hover:shadow-md transition">
-                      <div className="flex-1">
-                         <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${c.status==="Resolved"?"bg-green-100 text-green-700":"bg-yellow-100 text-yellow-700"}`}>{c.status}</span>
-                            <h4 className="font-bold text-lg text-gray-800">{c.subject}</h4>
-                         </div>
-                         <p className="text-gray-600 text-sm mb-2">"{c.message}"</p>
-                         <div className="flex gap-4 text-xs text-gray-400 items-center">
-                            <span className="flex items-center gap-1"><Users size={12}/> {c.farmerName}</span>
-                            <span className="flex items-center gap-1"><Mail size={12}/> {c.email}</span>
-                            <span>ID: {c.uid.slice(0,5)}</span>
-                         </div>
-                         {c.adminReply && (
-                             <div className="mt-4 bg-gray-50 p-3 rounded-lg border-l-4 border-green-500 text-sm">
-                                 <strong className="text-gray-900 block mb-1">Your Reply:</strong>
-                                 <p className="text-gray-600">{c.adminReply}</p>
-                             </div>
-                         )}
-                      </div>
-                      
-                      {c.status === "Pending" && (
-                        <button 
-                           onClick={() => handleResolveComplaint(c.id, c.email, c.farmerName, c.message)}
-                           className="bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-green-700 flex items-center gap-2 shadow-lg shadow-green-200 transition transform hover:scale-105"
-                        >
-                           <CheckCircle size={18}/> Resolve & Email
-                        </button>
-                      )}
+        {/* Market Prices Render */}
+        {activeTab === "market" && (
+            <div className="animate-fade-up">
+              <h2 className="text-3xl font-bold mb-6 text-gray-800">Manage Market Prices</h2>
+              <div className={`p-6 rounded-2xl shadow-sm border mb-8 transition-colors ${editMarketId ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"}`}>
+                <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${editMarketId ? "text-orange-700" : "text-gray-800"}`}>
+                  {editMarketId ? <><Edit2 size={20}/> Editing Price</> : "Add New Price"}
+                </h3>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <input value={marketCrop} onChange={(e)=>setMarketCrop(e.target.value)} placeholder="Crop (e.g. Wheat)" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 bg-white" />
+                    <input value={marketMandi} onChange={(e)=>setMarketMandi(e.target.value)} placeholder="Mandi" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 bg-white" />
+                    <input value={marketPrice} onChange={(e)=>setMarketPrice(e.target.value)} placeholder="Price" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 bg-white" />
+                    <select value={marketChange} onChange={(e)=>setMarketChange(e.target.value)} className="border p-3 rounded-xl outline-none bg-white">
+                        <option value="up">Trending Up</option><option value="down">Trending Down</option><option value="stable">Stable</option>
+                    </select>
+                    <button onClick={handleAddOrUpdateMarketPrice} className={`px-6 py-3 rounded-xl font-bold text-white transition shadow-sm ${editMarketId ? "bg-orange-500 hover:bg-orange-600" : "bg-green-600 hover:bg-green-700"}`}>
+                      {editMarketId ? "Update" : "Add"}
+                    </button>
+                    {editMarketId && <button onClick={() => { setEditMarketId(null); setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); }} className="px-4 text-gray-500 font-bold">Cancel</button>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {marketPrices.map(m => (
+                  <div key={m.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden">
+                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
+                     <div className="pl-2">
+                        <h4 className="font-bold text-lg text-gray-800">{m.crop}</h4>
+                        <p className="text-gray-500 text-sm">{m.market}</p>
+                     </div>
+                     <div className="text-right">
+                        <p className="font-bold text-lg text-green-600">{m.price}</p>
+                        <div className="flex gap-2 justify-end mt-1">
+                          <button onClick={() => startEditPrice(m)} className="text-gray-400 hover:text-blue-500 transition"><Edit2 size={16}/></button>
+                          <button onClick={() => handleDelete("market_prices", m.id)} className="text-gray-400 hover:text-red-500 transition"><Trash2 size={16}/></button>
+                        </div>
+                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+        )}
+
+        {/* Forum Render */}
+        {activeTab === "forum" && (
+           <div className="animate-fade-up">
+             <h2 className="text-3xl font-bold mb-6 text-gray-800">Community Moderation</h2>
+             <div className="space-y-4">
+                {forumPosts.map(post => (
+                   <div key={post.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start gap-4">
+                       <div className="flex-1">
+                           <div className="flex items-center gap-2 mb-2">
+                               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">{post.authorName?.[0] || "U"}</div>
+                               <div>
+                                 <span className="font-bold text-gray-800 text-sm block">{post.authorName}</span>
+                                 <span className="text-xs text-gray-400">{post.authorEmail}</span>
+                               </div>
+                           </div>
+                           {post.imageUrl && <img src={post.imageUrl} alt="Post" className="h-32 w-auto rounded-lg mb-3 object-cover border bg-gray-50" />}
+                           <p className="text-gray-700 text-sm">"{post.text}"</p>
+                       </div>
+                       <button onClick={() => handleDelete("forum_posts", post.id)} className="text-red-600 bg-red-50 px-4 py-2 rounded-lg font-bold hover:bg-red-100 hover:text-red-700 transition flex items-center gap-2 text-xs">
+                           <Trash2 size={14}/> Delete Post
+                       </button>
                    </div>
                 ))}
              </div>
-          </div>
-        )}
-
-        {/* Market Prices Tab */}
-        {activeTab === "market" && (
-          <div className="animate-fade-up">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Manage Market Prices</h2>
-            <div className={`p-6 rounded-2xl shadow-sm border mb-8 transition-colors ${editMarketId ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"}`}>
-              <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${editMarketId ? "text-orange-700" : "text-gray-800"}`}>
-                {editMarketId ? <><Edit2 size={20}/> Editing Price</> : "Add New Price"}
-              </h3>
-              <div className="flex flex-col sm:flex-row gap-4">
-                  <input value={marketCrop} onChange={(e)=>setMarketCrop(e.target.value)} placeholder="Crop (e.g. Wheat)" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500" />
-                  <input value={marketMandi} onChange={(e)=>setMarketMandi(e.target.value)} placeholder="Mandi (e.g. Delhi)" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500" />
-                  <input value={marketPrice} onChange={(e)=>setMarketPrice(e.target.value)} placeholder="Price (e.g. ₹2000/qt)" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500" />
-                  <select value={marketChange} onChange={(e)=>setMarketChange(e.target.value)} className="border p-3 rounded-xl outline-none bg-white">
-                      <option value="up">Trending Up</option>
-                      <option value="down">Trending Down</option>
-                      <option value="stable">Stable</option>
-                  </select>
-                  <button onClick={handleAddOrUpdateMarketPrice} className={`px-6 py-3 rounded-xl font-bold text-white transition ${editMarketId ? "bg-orange-500 hover:bg-orange-600" : "bg-green-600 hover:bg-green-700"}`}>
-                    {editMarketId ? "Update" : "Add"}
-                  </button>
-                  {editMarketId && (
-                    <button onClick={() => { setEditMarketId(null); setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); }} className="px-4 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-200">
-                      Cancel
-                    </button>
-                  )}
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              {marketPrices.map(m => (
-                <div key={m.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition">
-                   <div>
-                      <h4 className="font-bold text-xl text-gray-800">{m.crop}</h4>
-                      <p className="text-gray-500 text-sm">{m.market}</p>
-                   </div>
-                   <div className="text-right flex items-center gap-4">
-                      <div>
-                         <p className="font-bold text-lg text-green-600">{m.price}</p>
-                         <p className="text-xs text-gray-400 uppercase">{m.change}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => startEditPrice(m)} className="text-gray-400 hover:text-blue-500 p-2 hover:bg-blue-50 rounded-full transition-colors" title="Edit Price">
-                          <Edit2 size={18} />
-                        </button>
-                        <button onClick={() => handleDelete("market_prices", m.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors" title="Delete">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ✅ COMMUNITY FORUM TAB - Delete button clearly visible */}
-        {activeTab === "forum" && (
-          <div className="animate-fade-up">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800">Community Moderation</h2>
-            <div className="space-y-4">
-               {forumPosts.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl">No posts found.</p> : forumPosts.map(post => (
-                  <div key={post.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start gap-4 hover:shadow-md transition">
-                      <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                              <span className="font-bold text-gray-800">{post.authorName}</span>
-                              <span className="text-xs text-gray-400">{post.authorEmail}</span>
-                          </div>
-                          {post.imageUrl && (
-                            <img src={post.imageUrl} alt="Post" className="h-24 w-auto rounded-lg mb-2 object-cover border" />
-                          )}
-                          <p className="text-gray-700 mb-2">"{post.text}"</p>
-                          <span className="text-xs text-gray-400">ID: {post.id}</span>
-                      </div>
-                      <button onClick={() => handleDelete("forum_posts", post.id)} className="text-red-500 bg-red-50 px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition flex items-center gap-2">
-                          <Trash2 size={16}/> Delete
-                      </button>
-                  </div>
-               ))}
-            </div>
-          </div>
+           </div>
         )}
 
       </div>
+
+      {/* Chat Interface Fixed Overlay */}
+      {activeChat && (
+        <ChatInterface 
+          chatId={`chat_${activeChat.id}`} 
+          receiverName={activeChat.name}
+          isUserAdmin={true} 
+          onClose={() => setActiveChat(null)}
+        />
+      )}
+
     </div>
   );
 };

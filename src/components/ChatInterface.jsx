@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
-import { Send, X, User, ShieldCheck, Sparkles } from "lucide-react";
+import { Send, X, User, ShieldCheck, Sparkles, CheckCheck } from "lucide-react";
 
 const ChatInterface = ({ chatId, receiverName, isUserAdmin, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -31,7 +31,7 @@ const ChatInterface = ({ chatId, receiverName, isUserAdmin, onClose }) => {
     if (!newMessage.trim()) return;
 
     const textToSend = newMessage;
-    setNewMessage(""); // Clear input early for "sexy" responsiveness
+    setNewMessage("");
 
     try {
       await addDoc(collection(db, "chats", chatId, "messages"), {
@@ -45,64 +45,63 @@ const ChatInterface = ({ chatId, receiverName, isUserAdmin, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-x-4 bottom-4 md:inset-x-auto md:right-6 md:bottom-6 md:w-[400px] h-[75vh] md:h-[600px] flex flex-col bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/20 overflow-hidden z-[9999] transition-all duration-500 animate-in fade-in slide-in-from-bottom-10">
+    <div className="fixed bottom-4 right-4 z-[9999] w-[calc(100vw-2rem)] sm:w-[360px] h-[500px] max-h-[80vh] flex flex-col bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
       
-      {/* Sexy Header */}
-      <div className={`p-5 flex justify-between items-center relative overflow-hidden ${isUserAdmin ? "bg-slate-900" : "bg-emerald-600"}`}>
-        {/* Decorative Background Glow */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-        
-        <div className="flex items-center gap-3 relative z-10">
+      {/* Header - Compact & Professional */}
+      <div className={`px-4 py-3 flex justify-between items-center shadow-sm shrink-0 ${
+        isUserAdmin ? "bg-slate-900" : "bg-emerald-600"
+      }`}>
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
-              {isUserAdmin ? <User className="text-white" size={20} /> : <ShieldCheck className="text-white" size={20} />}
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm border border-white/10">
+              {isUserAdmin ? <User className="text-white" size={18} /> : <ShieldCheck className="text-white" size={18} />}
             </div>
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-emerald-600 rounded-full animate-pulse" />
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-slate-900 rounded-full"></span>
           </div>
           <div>
-            <h3 className="font-bold text-white text-base tracking-tight">{receiverName}</h3>
-            <div className="flex items-center gap-1.5">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-green-400" />
-              <span className="text-[10px] text-white/70 uppercase font-black tracking-widest">
-                {isUserAdmin ? "Direct Channel" : "Verified Support"}
-              </span>
-            </div>
+            <h3 className="font-bold text-white text-sm leading-tight">{receiverName}</h3>
+            <p className="text-[10px] text-white/80 font-medium">
+              {isUserAdmin ? "Direct Support" : "Verified Farmer"}
+            </p>
           </div>
         </div>
 
         <button 
           onClick={onClose} 
-          className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all active:scale-90"
+          className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
       </div>
 
-      {/* Message Area with Custom Scrollbar */}
-      <div className="flex-1 p-5 overflow-y-auto bg-slate-50/50 flex flex-col gap-4 scrollbar-thin scrollbar-thumb-slate-200">
+      {/* Message Area */}
+      <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full opacity-40">
-            <Sparkles size={40} className="mb-2 text-slate-400" />
-            <p className="text-sm font-medium">Safe & Secure encrypted chat</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <Sparkles size={32} className="mb-2 opacity-50" />
+            <p className="text-xs font-medium">Start a secure conversation</p>
           </div>
         ) : (
-          messages.map((msg, index) => {
+          messages.map((msg) => {
             const isMe = (isUserAdmin && msg.sender === "admin") || (!isUserAdmin && msg.sender === "farmer");
             return (
               <div 
                 key={msg.id} 
-                className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                className={`flex flex-col max-w-[85%] ${isMe ? "self-end items-end" : "self-start items-start"}`}
               >
-                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm transition-all hover:shadow-md ${
+                <div className={`px-3.5 py-2 text-sm rounded-2xl shadow-sm leading-relaxed break-words ${
                   isMe 
-                    ? "bg-emerald-600 text-white rounded-tr-none font-medium" 
-                    : "bg-white text-slate-700 border border-slate-100 rounded-tl-none"
+                    ? (isUserAdmin ? "bg-slate-800 text-white rounded-tr-sm" : "bg-emerald-600 text-white rounded-tr-sm")
+                    : "bg-white text-gray-700 border border-gray-200 rounded-tl-sm"
                 }`}>
                   {msg.text}
                 </div>
-                <span className="text-[9px] text-slate-400 mt-1 px-1 font-bold">
-                  {msg.timestamp?.toDate ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric' }).format(msg.timestamp.toDate()) : ''}
-                </span>
+                <div className="flex items-center gap-1 mt-1 px-1">
+                  <span className="text-[9px] text-gray-400">
+                    {msg.timestamp?.toDate ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric' }).format(msg.timestamp.toDate()) : 'Now'}
+                  </span>
+                  {isMe && <CheckCheck size={10} className="text-emerald-500" />}
+                </div>
               </div>
             );
           })
@@ -110,28 +109,28 @@ const ChatInterface = ({ chatId, receiverName, isUserAdmin, onClose }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Sexy Input Area */}
-      <div className="p-4 bg-white border-t border-slate-100">
+      {/* Input Area */}
+      <div className="p-3 bg-white border-t border-gray-100 shrink-0">
         <form 
           onSubmit={handleSend} 
-          className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 focus-within:border-emerald-500 focus-within:bg-white transition-all shadow-inner"
+          className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-full border border-gray-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-all"
         >
           <input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Write a message..."
-            className="flex-1 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-slate-400 text-slate-700"
+            placeholder="Type a message..."
+            className="flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-gray-400 text-gray-700 min-w-0"
           />
           <button 
             type="submit" 
             disabled={!newMessage.trim()}
-            className={`p-2.5 rounded-xl transition-all transform active:scale-95 ${
+            className={`p-2 rounded-full transition-all shrink-0 ${
               newMessage.trim() 
-                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200" 
-                : "bg-slate-300 text-white"
+                ? (isUserAdmin ? "bg-slate-900 text-white hover:bg-slate-800" : "bg-emerald-600 text-white hover:bg-emerald-700")
+                : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >
-            <Send size={18} />
+            <Send size={16} className={newMessage.trim() ? "translate-x-0.5" : ""} />
           </button>
         </form>
       </div>
