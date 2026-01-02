@@ -13,27 +13,22 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // ✅ NEW FEATURE IMPORTS
 import MarketPrices from "./components/MarketPrices";
 import CommunityForum from "./components/CommunityForum";
+import FarmerMap from "./components/FarmerMap"; //
 
 import { motion } from "framer-motion";
 import "./i18n"; 
-import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf } from "lucide-react";
+import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf, MapPinned } from "lucide-react";
 
 // ANIMATED HERO SECTION & LANDING PAGE
 const Home = () => (
   <div className="pt-16 min-h-screen bg-slate-50 font-sans selection:bg-emerald-200">
     
-    {/* 1. HERO BANNER (High Contrast & Standard Colors) */}
+    {/* 1. HERO BANNER */}
     <div className="relative w-full min-h-[90vh] flex items-center justify-center overflow-hidden">
-      
-      {/* Background Image */}
       <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1625246333195-58197bd47d26?q=80&w=2071')] bg-cover bg-center bg-fixed transform scale-105"></div>
-      
-      {/* Strong Dark Overlay for Text Readability */}
       <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/95 via-emerald-900/80 to-black/40"></div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center py-20">
-        
-        {/* Left: Content */}
         <motion.div 
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -66,16 +61,12 @@ const Home = () => (
           </div>
         </motion.div>
 
-        {/* Right: Visual (Abstract Glass UI) - Hidden on mobile */}
         <motion.div 
            initial={{ opacity: 0, scale: 0.8 }}
            animate={{ opacity: 1, scale: 1 }}
            className="hidden md:block relative h-full min-h-[400px]"
         >
-           {/* Abstract Floating Glows */}
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/20 blur-[100px] rounded-full animate-pulse"></div>
-           
-           {/* Mockup Card Floating */}
            <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 p-6 rounded-3xl shadow-2xl transform rotate-3 hover:rotate-0 transition-all duration-500 max-w-sm w-full">
                   <div className="flex items-center gap-4 mb-6">
@@ -99,7 +90,7 @@ const Home = () => (
       </div>
     </div>
 
-    {/* 2. STATS BANNER (Solid White, High Contrast) */}
+    {/* 2. STATS BANNER */}
     <div className="relative z-20 max-w-6xl mx-auto px-6 -mt-16 sm:-mt-20">
       <div className="bg-white border-b-4 border-emerald-500 rounded-3xl shadow-xl flex flex-wrap justify-around p-8 gap-6">
         {[
@@ -120,7 +111,7 @@ const Home = () => (
       </div>
     </div>
 
-    {/* 3. FEATURES GRID (Solid Cards with Color Accents) */}
+    {/* 3. FEATURES GRID */}
     <div id="features" className="max-w-7xl mx-auto px-6 py-24">
       <div className="text-center mb-16">
         <h2 className="text-sm font-extrabold text-emerald-600 uppercase tracking-widest mb-3 bg-emerald-50 inline-block px-4 py-1 rounded-full border border-emerald-100">
@@ -133,7 +124,7 @@ const Home = () => (
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* Weather Card - Blue Theme */}
+        {/* Weather Card */}
         <Link to="/weather" className="group relative bg-white border-2 border-blue-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-blue-600"></div>
           <div className="relative z-10">
@@ -150,7 +141,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* Verify Card - Emerald Theme */}
+        {/* Verify Card */}
         <Link to="/verify" className="group relative bg-white border-2 border-emerald-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-emerald-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
           <div className="relative z-10">
@@ -167,7 +158,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* Schemes Card - Orange Theme */}
+        {/* Schemes Card */}
         <Link to="/schemes" className="group relative bg-white border-2 border-orange-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-orange-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-orange-600"></div>
           <div className="relative z-10">
@@ -184,7 +175,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* ✅ ADDED: Market Prices Card - Purple Theme */}
+        {/* Market Prices Card */}
         <Link to="/market" className="group relative bg-white border-2 border-purple-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-purple-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-purple-600"></div>
           <div className="relative z-10">
@@ -201,7 +192,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* ✅ ADDED: Community Forum Card - Rose Theme */}
+        {/* Community Forum Card */}
         <Link to="/forum" className="group relative bg-white border-2 border-rose-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-rose-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-rose-600"></div>
           <div className="relative z-10">
@@ -218,6 +209,23 @@ const Home = () => (
           </div>
         </Link>
 
+        {/* ✅ ADDED: Resource Map Card - Teal Theme */}
+        <Link to="/map" className="group relative bg-white border-2 border-teal-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-teal-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-400 to-teal-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-teal-200">
+              <MapPinned size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-teal-700 transition-colors">Resources Map</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Locate nearby seed shops, testing labs, and agricultural centers with step-by-step directions.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-teal-50 text-teal-700 font-bold flex items-center justify-center gap-2 group-hover:bg-teal-600 group-hover:text-white transition-all">
+              View Map <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
       </div>
     </div>
   </div>
@@ -227,7 +235,6 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        {/* Main Background - Standard Slate Color */}
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
           <Navbar />
           <Routes>
@@ -277,7 +284,6 @@ function App() {
               } 
             />
             
-            {/* ✅ NEW FEATURES ROUTES */}
             <Route 
               path="/market" 
               element={
@@ -291,6 +297,16 @@ function App() {
               element={
                 <ProtectedRoute>
                   <CommunityForum />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* ✅ NEW RESOURCE MAP ROUTE */}
+            <Route 
+              path="/map" 
+              element={
+                <ProtectedRoute>
+                  <FarmerMap />
                 </ProtectedRoute>
               } 
             />
