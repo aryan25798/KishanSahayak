@@ -10,7 +10,12 @@ import Verify from "./components/Verify";
 import Schemes from "./components/Schemes"; 
 import ContactSupport from "./components/ContactSupport"; 
 import ProtectedRoute from "./components/ProtectedRoute"; 
+// ✅ NEW FEATURE IMPORTS
+import MarketPrices from "./components/MarketPrices";
+import CommunityForum from "./components/CommunityForum";
+
 import { motion } from "framer-motion";
+import "./i18n"; 
 import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf } from "lucide-react";
 
 // ANIMATED HERO SECTION & LANDING PAGE
@@ -130,9 +135,7 @@ const Home = () => (
         
         {/* Weather Card - Blue Theme */}
         <Link to="/weather" className="group relative bg-white border-2 border-blue-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          {/* Top Color Bar */}
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-blue-600"></div>
-          
           <div className="relative z-10">
             <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-blue-200">
               <CloudRain size={32} />
@@ -149,9 +152,7 @@ const Home = () => (
 
         {/* Verify Card - Emerald Theme */}
         <Link to="/verify" className="group relative bg-white border-2 border-emerald-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-emerald-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          {/* Top Color Bar */}
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
-          
           <div className="relative z-10">
             <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-emerald-200">
               <ShieldCheck size={32} />
@@ -168,9 +169,7 @@ const Home = () => (
 
         {/* Schemes Card - Orange Theme */}
         <Link to="/schemes" className="group relative bg-white border-2 border-orange-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-orange-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          {/* Top Color Bar */}
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-orange-600"></div>
-          
           <div className="relative z-10">
             <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-orange-200">
               <ScrollText size={32} />
@@ -184,6 +183,41 @@ const Home = () => (
             </div>
           </div>
         </Link>
+
+        {/* ✅ ADDED: Market Prices Card - Purple Theme */}
+        <Link to="/market" className="group relative bg-white border-2 border-purple-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-purple-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-purple-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-purple-200">
+              <TrendingUp size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-purple-700 transition-colors">Mandi Bhav</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Real-time market prices for crops in your nearby mandis. Track trends and sell at the right time.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-purple-50 text-purple-700 font-bold flex items-center justify-center gap-2 group-hover:bg-purple-600 group-hover:text-white transition-all">
+              Check Prices <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
+        {/* ✅ ADDED: Community Forum Card - Rose Theme */}
+        <Link to="/forum" className="group relative bg-white border-2 border-rose-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-rose-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-rose-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-rose-200">
+              <Users size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-rose-700 transition-colors">Kisan Chopal</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Connect with other farmers, ask questions, share tips, and solve farming problems together.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-rose-50 text-rose-700 font-bold flex items-center justify-center gap-2 group-hover:bg-rose-600 group-hover:text-white transition-all">
+              Join Community <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
       </div>
     </div>
   </div>
@@ -239,6 +273,24 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* ✅ NEW FEATURES ROUTES */}
+            <Route 
+              path="/market" 
+              element={
+                <ProtectedRoute>
+                  <MarketPrices />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forum" 
+              element={
+                <ProtectedRoute>
+                  <CommunityForum />
                 </ProtectedRoute>
               } 
             />
