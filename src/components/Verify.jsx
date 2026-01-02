@@ -13,12 +13,16 @@ const Verify = () => {
 
   // Verification Logic
   const verifyCode = async (batchId) => {
+    if (!batchId) return;
     setIsScanning(false); // Stop scanner if running
     setResult(null);
+    setProductData(null);
     
     // Check Firestore
     try {
-      const docRef = doc(db, "products", batchId);
+      // Use uppercase to match how Admin saves it (e.g., SEED-123)
+      const formattedId = batchId.trim().toUpperCase(); 
+      const docRef = doc(db, "products", formattedId);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -100,12 +104,27 @@ const Verify = () => {
           </button>
 
           {/* RESULTS */}
-          {result === "genuine" && (
+          {result === "genuine" && productData && (
             <div className="mt-8 p-6 bg-green-50 border-2 border-green-500 rounded-2xl text-center animate-bounce-in">
               <ShieldCheck size={60} className="mx-auto text-green-600 mb-2" />
               <h3 className="text-2xl font-bold text-green-800">GENUINE</h3>
-              <p className="text-gray-600 font-medium">{productData.name}</p>
-              <p className="text-xs text-gray-400 mt-2">Verified by Manufacturer</p>
+              
+              {/* ✅ NEW: Product Image Display */}
+              {productData.imageUrl && (
+                <div className="my-4">
+                  <img 
+                    src={productData.imageUrl} 
+                    alt={productData.name} 
+                    className="w-32 h-32 object-cover rounded-lg mx-auto border-2 border-green-200 shadow-sm"
+                  />
+                </div>
+              )}
+
+              <p className="text-gray-900 font-bold text-lg">{productData.name}</p>
+              <p className="text-xs text-gray-500 mt-1">Verified by Manufacturer</p>
+              <p className="text-xs text-green-600 font-mono mt-2 bg-green-100 px-2 py-1 rounded-full inline-block">
+                 ID: {code.toUpperCase()}
+              </p>
             </div>
           )}
 
@@ -113,7 +132,7 @@ const Verify = () => {
             <div className="mt-8 p-6 bg-red-50 border-2 border-red-500 rounded-2xl text-center animate-shake">
               <XCircle size={60} className="mx-auto text-red-600 mb-2" />
               <h3 className="text-2xl font-bold text-red-800">FAKE PRODUCT</h3>
-              <p className="text-red-600 text-sm">This code does not exist in our database.</p>
+              <p className="text-red-600 text-sm mt-2">This batch code does not exist in our database. Please report this to the dealer.</p>
             </div>
           )}
         </div>

@@ -6,7 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, Image as ImageIcon, X, Mail, MessageSquare, CheckCircle } from "lucide-react";
-import emailjs from "@emailjs/browser"; // Import EmailJS
+import emailjs from "@emailjs/browser"; 
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -17,59 +17,60 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [schemes, setSchemes] = useState([]);
   const [farmers, setFarmers] = useState([]);
-  const [complaints, setComplaints] = useState([]); // State for complaints
+  const [complaints, setComplaints] = useState([]); 
   const [loading, setLoading] = useState(true);
 
-  // Form States - Products
+  // Form States
   const [productName, setProductName] = useState("");
   const [batchCode, setBatchCode] = useState("");
   const [productImage, setProductImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
-
-  // Form States - Schemes
   const [schemeTitle, setSchemeTitle] = useState("");
   const [schemeDesc, setSchemeDesc] = useState("");
   const [schemeCategory, setSchemeCategory] = useState("Scheme");
 
-  // Google Search States
+  // Search & API States
   const [searchQuery, setSearchQuery] = useState("latest agriculture subsidy india 2026");
   const [webResults, setWebResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  const GOOGLE_API_KEY = "AIzaSyAg_bn6dSe_rN1Vs2KmdgAbG2ijFhEM508"; 
-  const SEARCH_ENGINE_ID = "027d6fdac9ded49ed"; 
+  const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_SEARCH_KEY; 
+  const SEARCH_ENGINE_ID = import.meta.env.VITE_SEARCH_ENGINE_ID; 
+  const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+  const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+  const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-  // ✅ EMAILJS CREDENTIALS
-  const SERVICE_ID = "service_wqjm5ls";
-  const TEMPLATE_ID = "template_31y9zld";
-  const PUBLIC_KEY = "2ch5ACYqCdhK6ZYMO";
-
-  // 1. Security Check
+  // 1. ✅ FIXED: Robust Security Check
   useEffect(() => {
-    if (user && user.email !== "admin@system.com") {
+    // Check 1: If not logged in at all -> Go to Login
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    // Check 2: If logged in but NOT admin -> Go to Home
+    if (user.email !== "admin@system.com") {
       alert("Access Denied. Admins only.");
       navigate("/");
     }
   }, [user, navigate]);
 
-  // 2. Fetch Data
+  // 2. Fetch Data (Only if Admin)
   const fetchData = async () => {
+    if (!user || user.email !== "admin@system.com") return; // Double protection
+
     setLoading(true);
     try {
-      // Products
       const pSnap = await getDocs(collection(db, "products"));
       setProducts(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-      // Schemes
       const sSnap = await getDocs(collection(db, "schemes"));
       setSchemes(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-      // Farmers
       const fSnap = await getDocs(query(collection(db, "users"), where("role", "==", "farmer")));
       setFarmers(fSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-      // Complaints
       const cSnap = await getDocs(collection(db, "complaints"));
       setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
@@ -79,9 +80,13 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    if (user?.email === "admin@system.com") {
+        fetchData(); 
+    }
+  }, [user]);
 
-  // 3. Image Handling
+  // Image Handling
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -106,7 +111,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // 4. Product Logic
+  // Product Logic
   const handleAddProduct = async () => {
     if (!batchCode || !productName) return alert("Fill all fields");
     const safeCode = batchCode.replace(/\//g, "-").toUpperCase(); 
@@ -131,7 +136,7 @@ const AdminDashboard = () => {
     } catch (e) { alert(e.message); }
   };
 
-  // 5. Scheme Logic & Google Search
+  // Scheme Logic
   const searchWebSchemes = async () => {
     setSearching(true);
     try {
@@ -163,19 +168,16 @@ const AdminDashboard = () => {
     if(confirm("Delete this?")) { await deleteDoc(doc(db, col, id)); fetchData(); }
   };
 
-  // 6. Complaint Resolution Logic (with EmailJS)
   const handleResolveComplaint = async (id, farmerEmail, farmerName, originalMessage) => {
     const reply = prompt("Enter your reply to the farmer:");
     if (!reply) return;
 
     try {
-      // Update DB
       await updateDoc(doc(db, "complaints", id), {
         status: "Resolved",
         adminReply: reply
       });
 
-      // Send Email
       const templateParams = {
         to_name: farmerName || "Farmer",
         to_email: farmerEmail,
@@ -186,7 +188,6 @@ const AdminDashboard = () => {
       };
 
       await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-
       alert(`Complaint Resolved! Email sent to ${farmerEmail}`);
       fetchData();
     } catch (e) {
@@ -195,6 +196,15 @@ const AdminDashboard = () => {
     }
   };
 
+  // ✅ 3. BLOCK RENDER: If not admin, do not show ANYTHING (prevents flashing)
+  if (!user || user.email !== "admin@system.com") {
+      return (
+        <div className="h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
+            <Loader className="animate-spin text-red-600" size={40} />
+            <h2 className="text-xl font-bold text-gray-700">Verifying Access...</h2>
+        </div>
+      );
+  }
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader className="animate-spin text-green-600" /></div>;
 
@@ -236,7 +246,6 @@ const AdminDashboard = () => {
                     <input value={batchCode} onChange={(e)=>setBatchCode(e.target.value.toUpperCase())} placeholder="Batch Code" className="border p-3 rounded-xl w-full outline-none mb-4" />
                     <input value={productName} onChange={(e)=>setProductName(e.target.value)} placeholder="Product Name" className="border p-3 rounded-xl w-full outline-none" />
                 </div>
-                {/* Image Upload */}
                 <div className="flex flex-col items-center gap-2">
                     <label className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden">
                         {imagePreview ? (
@@ -255,7 +264,6 @@ const AdminDashboard = () => {
                 </button>
               </div>
             </div>
-            {/* Products Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b"><tr><th className="p-4">Img</th><th className="p-4">Code</th><th className="p-4">Name</th><th className="p-4">Action</th></tr></thead>
@@ -278,7 +286,6 @@ const AdminDashboard = () => {
         {activeTab === "schemes" && (
           <div className="animate-fade-in">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Manage Schemes</h2>
-            {/* Google Search */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-blue-100 mb-8">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-800"><Globe size={20}/> Import from Google</h3>
               <div className="flex gap-2 mb-4">
@@ -298,7 +305,6 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
-            {/* Manual Add */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
               <h3 className="text-lg font-bold mb-4">Post Manually</h3>
               <div className="space-y-4">
@@ -312,7 +318,6 @@ const AdminDashboard = () => {
                 <button onClick={handleAddScheme} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700">Post Scheme</button>
               </div>
             </div>
-            {/* Schemes List */}
             <div className="grid gap-4">
               {schemes.map(s => (
                 <div key={s.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start hover:shadow-md transition">
@@ -357,7 +362,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* COMPLAINTS TAB (Help Desk) */}
+        {/* COMPLAINTS TAB */}
         {activeTab === "complaints" && (
           <div className="animate-fade-in">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Help Desk & Complaints</h2>

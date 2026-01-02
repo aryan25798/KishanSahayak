@@ -4,8 +4,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MessageCircle, X, Send, Image as ImageIcon, Mic, StopCircle, Sparkles, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// YOUR API KEY
-const genAI = new GoogleGenerativeAI("AIzaSyCsUXyHX4R_1-P8SJDSEtNAom_Y1f1V0J4");
+// ✅ Secured API Key using Environment Variable
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 const FloatingChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,19 +28,68 @@ const FloatingChatbot = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Speech Recognition Setup
+  // ✅ Speech Recognition Setup
   useEffect(() => {
     if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = "en-IN"; 
-      recognitionRef.current.onresult = (e) => {
-        setInput(e.results[0][0].transcript);
+      const recognition = new SpeechRecognition();
+      
+      recognition.continuous = false; // Standard for voice commands
+      recognition.interimResults = false;
+      recognition.lang = "en-IN"; 
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        setInput(transcript);
+      };
+
+      // ✅ IMPROVED ERROR HANDLING
+      recognition.onerror = (e) => {
+        console.error("Speech recognition error:", e.error);
+        
+        if (e.error === 'network') {
+          alert("Network Error: Voice recognition requires an active internet connection.");
+        } else if (e.error === 'not-allowed') {
+          alert("Microphone blocked. Please allow access in browser settings.");
+        } else if (e.error === 'no-speech') {
+          // Ignore no-speech (just silence)
+        } else {
+          alert("Voice Error: " + e.error);
+        }
+        
         setIsListening(false);
       };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+      console.warn("Speech Recognition API not supported in this browser.");
     }
   }, []);
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) {
+      alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
+      return;
+    }
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error("Mic start error:", err);
+      }
+    }
+  };
 
   const fileToGenerativePart = async (file) => {
     return new Promise((resolve) => {
@@ -67,7 +116,9 @@ const FloatingChatbot = () => {
     setInput(""); setImage(null); setImagePreview(null); setLoading(true);
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // ✅ Using Gemini 2.5 Flash
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      
       let prompt = input ? [input] : [];
       if (image) {
         prompt.push(await fileToGenerativePart(image));
@@ -81,6 +132,7 @@ const FloatingChatbot = () => {
       speakText(text); 
 
     } catch (error) {
+      console.error(error);
       setMessages(prev => [...prev, { text: "Connection error. Please try again.", sender: "bot" }]);
     }
     setLoading(false);
@@ -93,7 +145,7 @@ const FloatingChatbot = () => {
 
   return (
     <>
-      {/* 1. FLOATING LAUNCHER (Glowing Orb) */}
+      {/* 1. FLOATING LAUNCHER */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button 
@@ -110,7 +162,7 @@ const FloatingChatbot = () => {
         )}
       </AnimatePresence>
 
-      {/* 2. MAIN CHAT WINDOW (Compact & Responsive) */}
+      {/* 2. MAIN CHAT WINDOW */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
@@ -119,9 +171,7 @@ const FloatingChatbot = () => {
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 120, damping: 20 }}
             className={`fixed z-50 bg-white/90 backdrop-blur-xl shadow-2xl border border-white/50 flex flex-col overflow-hidden
-              /* MOBILE: Full Screen */
               w-full h-[100dvh] bottom-0 right-0 rounded-none
-              /* LAPTOP/DESKTOP: Compact Floating Card */
               sm:w-[350px] sm:h-[500px] sm:bottom-5 sm:right-5 sm:rounded-3xl
             `}
           >
@@ -225,7 +275,7 @@ const FloatingChatbot = () => {
                 />
 
                 <button 
-                  onClick={() => isListening ? recognitionRef.current.stop() : recognitionRef.current.start()} 
+                  onClick={handleMicClick} 
                   className={`p-2 rounded-full transition ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-green-600'}`}
                 >
                   <Mic size={18} />

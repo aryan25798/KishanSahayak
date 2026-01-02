@@ -13,10 +13,10 @@ const ContactSupport = () => {
   const [myComplaints, setMyComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ YOUR CREDENTIALS INTEGRATED HERE
-  const SERVICE_ID = "service_wqjm5ls";
-  const TEMPLATE_ID = "template_31y9zld";
-  const PUBLIC_KEY = "2ch5ACYqCdhK6ZYMO";
+  // ✅ SECURED CREDENTIALS (using Environment Variables)
+  const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+  const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+  const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
   useEffect(() => {
     if (!user) return;

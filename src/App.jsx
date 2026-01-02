@@ -5,13 +5,15 @@ import Navbar from "./components/Navbar";
 import FloatingChatbot from "./components/FloatingChatbot";
 import Login from "./components/Login";
 import Weather from "./components/Weather";
-import AdminDashboard from "./components/AdminDashboard"; // Imported
-import Verify from "./components/Verify"; // Imported
-import Schemes from "./components/Schemes"; // Imported
+import AdminDashboard from "./components/AdminDashboard"; 
+import Verify from "./components/Verify"; 
+import Schemes from "./components/Schemes"; 
+import ContactSupport from "./components/ContactSupport"; 
+import ProtectedRoute from "./components/ProtectedRoute"; // ✅ Import Security Guard
 import { motion } from "framer-motion";
 import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf } from "lucide-react";
 
-// ANIMATED HERO SECTION
+// ANIMATED HERO SECTION (Keep exactly as it was)
 const Home = () => (
   <div className="pt-16 min-h-screen bg-gray-50 font-sans selection:bg-green-200">
     
@@ -100,7 +102,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* Verify Card - NOW LINKED */}
+        {/* Verify Card */}
         <Link to="/verify" className="group relative bg-white rounded-3xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:-translate-y-2 overflow-hidden cursor-pointer">
           <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
           <div className="relative z-10">
@@ -117,7 +119,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* Schemes Card - NOW LINKED */}
+        {/* Schemes Card */}
         <Link to="/schemes" className="group relative bg-white rounded-3xl p-8 shadow-sm hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:-translate-y-2 overflow-hidden cursor-pointer">
           <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
           <div className="relative z-10">
@@ -146,12 +148,52 @@ function App() {
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 relative">
           <Navbar />
           <Routes>
+            {/* PUBLIC ROUTES (Accessible to everyone) */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/weather" element={<Weather />} />
-            <Route path="/admin" element={<AdminDashboard />} /> {/* Admin Route */}
-            <Route path="/verify" element={<Verify />} /> {/* Verify Route */}
-            <Route path="/schemes" element={<Schemes />} /> {/* Schemes Route */}
+
+            {/* 🔒 PROTECTED ROUTES (Require Login) */}
+            <Route 
+              path="/weather" 
+              element={
+                <ProtectedRoute>
+                  <Weather />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/verify" 
+              element={
+                <ProtectedRoute>
+                  <Verify />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/schemes" 
+              element={
+                <ProtectedRoute>
+                  <Schemes />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/support" 
+              element={
+                <ProtectedRoute>
+                  <ContactSupport />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
           </Routes>
           <FloatingChatbot /> 
         </div>
