@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
-import { Send, Clock } from "lucide-react";
-import emailjs from "@emailjs/browser"; // Import EmailJS
+import { Send, Clock, MessageCircle } from "lucide-react"; // Added MessageCircle
+import emailjs from "@emailjs/browser"; 
+import ChatInterface from "./ChatInterface"; // ✅ Added Import
 
 const ContactSupport = () => {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ const ContactSupport = () => {
   const [message, setMessage] = useState("");
   const [myComplaints, setMyComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false); // ✅ Chat State
 
   // ✅ SECURED CREDENTIALS (using Environment Variables)
   const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
@@ -69,13 +71,24 @@ const ContactSupport = () => {
   };
 
   return (
-    <div className="pt-24 min-h-screen bg-gray-50 p-6">
+    <div className="pt-24 min-h-screen bg-gray-50 p-6 relative">
       <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
         
         {/* Form Section */}
         <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100">
-          <h2 className="text-3xl font-bold mb-2 text-gray-800">Contact Admin</h2>
-          <p className="text-gray-500 mb-6">Facing issues? Raise a ticket.</p>
+          <div className="flex justify-between items-center mb-6">
+             <div>
+                <h2 className="text-3xl font-bold text-gray-800">Contact Admin</h2>
+                <p className="text-gray-500">Email ticket or chat live.</p>
+             </div>
+             {/* ✅ Live Chat Button */}
+             <button 
+               onClick={() => setIsChatOpen(true)}
+               className="bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-green-200 transition animate-pulse"
+             >
+               <MessageCircle size={18}/> Live Chat
+             </button>
+          </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -137,6 +150,16 @@ const ContactSupport = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ Chat Interface Overlay */}
+      {isChatOpen && user && (
+        <ChatInterface 
+          chatId={`chat_${user.uid}`} // Unique Chat ID based on User ID
+          receiverName="Admin Support"
+          isUserAdmin={false} // Farmer Mode
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
     </div>
   );
 };

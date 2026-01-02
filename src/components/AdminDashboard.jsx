@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, Image as ImageIcon, X, Mail, MessageSquare, CheckCircle } from "lucide-react";
 import emailjs from "@emailjs/browser"; 
+import ChatInterface from "./ChatInterface"; // ✅ Added Import
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -19,6 +20,9 @@ const AdminDashboard = () => {
   const [farmers, setFarmers] = useState([]);
   const [complaints, setComplaints] = useState([]); 
   const [loading, setLoading] = useState(true);
+
+  // Chat State
+  const [activeChat, setActiveChat] = useState(null); // ✅ Added Chat State
 
   // Form States
   const [productName, setProductName] = useState("");
@@ -41,7 +45,7 @@ const AdminDashboard = () => {
   const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
   const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-  // 1. ✅ FIXED: Robust Security Check
+  // 1. ✅ Robust Security Check
   useEffect(() => {
     // Check 1: If not logged in at all -> Go to Login
     if (!user) {
@@ -196,7 +200,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // ✅ 3. BLOCK RENDER: If not admin, do not show ANYTHING (prevents flashing)
+  // 3. BLOCK RENDER: If not admin, do not show ANYTHING
   if (!user || user.email !== "admin@system.com") {
       return (
         <div className="h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
@@ -335,11 +339,11 @@ const AdminDashboard = () => {
 
         {/* FARMERS TAB */}
         {activeTab === "farmers" && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in relative">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Registered Farmers</h2>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Action</th></tr></thead>
+                  <thead className="bg-gray-50 border-b"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Actions</th></tr></thead>
                   <tbody>
                     {farmers.length === 0 ? (
                         <tr><td colSpan="3" className="p-6 text-center text-gray-500">No farmers found.</td></tr>
@@ -348,10 +352,17 @@ const AdminDashboard = () => {
                         <tr key={f.id} className="border-b">
                             <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
                             <td className="p-4 text-gray-600">{f.email}</td>
-                            <td className="p-4">
+                            <td className="p-4 flex items-center gap-2">
                                 <a href={`mailto:${f.email}?subject=Message from Kisan Sahayak Admin`} className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-200 text-sm transition">
                                     <Mail size={16} /> Contact
                                 </a>
+                                {/* ✅ Chat Button */}
+                                <button 
+                                  onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })}
+                                  className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold hover:bg-green-200 text-sm transition"
+                                >
+                                  <MessageSquare size={16} /> Chat
+                                </button>
                             </td>
                         </tr>
                         ))
@@ -359,6 +370,16 @@ const AdminDashboard = () => {
                   </tbody>
                </table>
             </div>
+
+            {/* ✅ Chat Interface Overlay */}
+            {activeChat && (
+              <ChatInterface 
+                chatId={`chat_${activeChat.id}`} 
+                receiverName={activeChat.name}
+                isUserAdmin={true} 
+                onClose={() => setActiveChat(null)}
+              />
+            )}
           </div>
         )}
 
