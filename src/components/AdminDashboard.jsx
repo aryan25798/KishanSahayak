@@ -5,14 +5,15 @@ import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where, upda
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, Image as ImageIcon, X, Mail, MessageSquare, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu } from "lucide-react";
 import emailjs from "@emailjs/browser"; 
-import ChatInterface from "./ChatInterface"; // ✅ Added Import
+import ChatInterface from "./ChatInterface";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("products");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // ✅ Mobile Sidebar State
   
   // Data States
   const [products, setProducts] = useState([]);
@@ -22,7 +23,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Chat State
-  const [activeChat, setActiveChat] = useState(null); // ✅ Added Chat State
+  const [activeChat, setActiveChat] = useState(null);
 
   // Form States
   const [productName, setProductName] = useState("");
@@ -47,13 +48,10 @@ const AdminDashboard = () => {
 
   // 1. ✅ Robust Security Check
   useEffect(() => {
-    // Check 1: If not logged in at all -> Go to Login
     if (!user) {
       navigate("/login");
       return;
     }
-
-    // Check 2: If logged in but NOT admin -> Go to Home
     if (user.email !== "admin@system.com") {
       alert("Access Denied. Admins only.");
       navigate("/");
@@ -62,7 +60,7 @@ const AdminDashboard = () => {
 
   // 2. Fetch Data (Only if Admin)
   const fetchData = async () => {
-    if (!user || user.email !== "admin@system.com") return; // Double protection
+    if (!user || user.email !== "admin@system.com") return;
 
     setLoading(true);
     try {
@@ -200,7 +198,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // 3. BLOCK RENDER: If not admin, do not show ANYTHING
+  // 3. BLOCK RENDER
   if (!user || user.email !== "admin@system.com") {
       return (
         <div className="h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
@@ -213,21 +211,41 @@ const AdminDashboard = () => {
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader className="animate-spin text-green-600" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex font-sans">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-900 text-white p-6 fixed h-full hidden md:block z-20">
-        <h2 className="text-2xl font-bold mb-8 text-green-400 tracking-tight">Admin Panel</h2>
+    <div className="min-h-screen bg-gray-50 flex font-sans relative">
+      
+      {/* ✅ MOBILE TOGGLE BUTTON */}
+      <button 
+        onClick={() => setIsSidebarOpen(true)}
+        className="md:hidden fixed bottom-6 right-6 z-50 bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform"
+      >
+        <Menu size={24} />
+      </button>
+
+      {/* ✅ RESPONSIVE SIDEBAR */}
+      <div className={`
+        fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 text-white p-6 
+        transform transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
+        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+        md:translate-x-0 md:relative md:block
+      `}>
+        <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold text-green-400 tracking-tight">Admin Panel</h2>
+            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white transition">
+              <X size={24} />
+            </button>
+        </div>
+
         <nav className="space-y-2">
-          <button onClick={() => setActiveTab("products")} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "products" ? "bg-green-600" : "hover:bg-gray-800"}`}>
+          <button onClick={() => { setActiveTab("products"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "products" ? "bg-green-600" : "hover:bg-gray-800"}`}>
             <Package size={20} /> Products
           </button>
-          <button onClick={() => setActiveTab("schemes")} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "schemes" ? "bg-green-600" : "hover:bg-gray-800"}`}>
+          <button onClick={() => { setActiveTab("schemes"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "schemes" ? "bg-green-600" : "hover:bg-gray-800"}`}>
             <ScrollText size={20} /> Schemes
           </button>
-          <button onClick={() => setActiveTab("farmers")} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "farmers" ? "bg-green-600" : "hover:bg-gray-800"}`}>
+          <button onClick={() => { setActiveTab("farmers"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "farmers" ? "bg-green-600" : "hover:bg-gray-800"}`}>
             <Users size={20} /> Farmers
           </button>
-          <button onClick={() => setActiveTab("complaints")} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "complaints" ? "bg-green-600" : "hover:bg-gray-800"}`}>
+          <button onClick={() => { setActiveTab("complaints"); setIsSidebarOpen(false); }} className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all ${activeTab === "complaints" ? "bg-green-600" : "hover:bg-gray-800"}`}>
             <MessageSquare size={20} /> Help Desk
           </button>
         </nav>
@@ -236,22 +254,30 @@ const AdminDashboard = () => {
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="md:ml-64 flex-1 p-8 pt-24">
+      {/* ✅ MOBILE OVERLAY */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)} 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"
+        ></div>
+      )}
+
+      {/* ✅ MAIN CONTENT (Fluid) */}
+      <div className="flex-1 p-6 lg:p-10 pt-24 overflow-y-auto h-screen">
         
         {/* PRODUCTS TAB */}
         {activeTab === "products" && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-up">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Verified Products</h2>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add New Batch</h3>
               <div className="flex flex-col md:flex-row gap-4 items-start">
                 <div className="flex-1 w-full">
-                    <input value={batchCode} onChange={(e)=>setBatchCode(e.target.value.toUpperCase())} placeholder="Batch Code" className="border p-3 rounded-xl w-full outline-none mb-4" />
-                    <input value={productName} onChange={(e)=>setProductName(e.target.value)} placeholder="Product Name" className="border p-3 rounded-xl w-full outline-none" />
+                    <input value={batchCode} onChange={(e)=>setBatchCode(e.target.value.toUpperCase())} placeholder="Batch Code" className="border p-3 rounded-xl w-full outline-none mb-4 focus:ring-2 focus:ring-green-500" />
+                    <input value={productName} onChange={(e)=>setProductName(e.target.value)} placeholder="Product Name" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
-                <div className="flex flex-col items-center gap-2">
-                    <label className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden">
+                <div className="flex flex-col items-center gap-2 w-full md:w-auto">
+                    <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
                         {imagePreview ? (
                             <>
                                 <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
@@ -263,43 +289,45 @@ const AdminDashboard = () => {
                         <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                     </label>
                 </div>
-                <button onClick={handleAddProduct} disabled={uploading} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-fit self-end">
+                <button onClick={handleAddProduct} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-fit self-end transition-colors shadow-lg">
                   {uploading ? "Uploading..." : "Verify & Add"}
                 </button>
               </div>
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-               <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b"><tr><th className="p-4">Img</th><th className="p-4">Code</th><th className="p-4">Name</th><th className="p-4">Action</th></tr></thead>
-                  <tbody>
-                    {products.map(p => (
-                      <tr key={p.id} className="border-b items-center">
-                          <td className="p-4">{p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover rounded-lg border" />}</td>
-                          <td className="p-4 font-mono text-blue-600">{p.id}</td>
-                          <td className="p-4">{p.name}</td>
-                          <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><Trash2 size={18}/></button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left min-w-[600px]">
+                    <thead className="bg-gray-50 border-b"><tr><th className="p-4">Img</th><th className="p-4">Code</th><th className="p-4">Name</th><th className="p-4">Action</th></tr></thead>
+                    <tbody>
+                      {products.map(p => (
+                        <tr key={p.id} className="border-b items-center hover:bg-gray-50 transition-colors">
+                            <td className="p-4">{p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover rounded-lg border" />}</td>
+                            <td className="p-4 font-mono text-blue-600 font-bold">{p.id}</td>
+                            <td className="p-4 font-medium">{p.name}</td>
+                            <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 size={18}/></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                 </table>
+               </div>
             </div>
           </div>
         )}
 
         {/* SCHEMES TAB */}
         {activeTab === "schemes" && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-up">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Manage Schemes</h2>
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-blue-100 mb-8">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-800"><Globe size={20}/> Import from Google</h3>
-              <div className="flex gap-2 mb-4">
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 p-3 border rounded-xl outline-none" placeholder="Search keywords..." />
-                <button onClick={searchWebSchemes} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2" disabled={searching}>
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search keywords..." />
+                <button onClick={searchWebSchemes} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors shadow-lg" disabled={searching}>
                   {searching ? <Loader className="animate-spin" size={18} /> : <Search size={18} />} Fetch
                 </button>
               </div>
               {webResults.length > 0 && (
-                <div className="grid gap-3 max-h-60 overflow-y-auto pr-2">
+                <div className="grid gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {webResults.map((item, idx) => (
                     <div key={idx} className="bg-white p-3 rounded-lg border flex justify-between items-center group hover:shadow-md transition">
                       <div className="flex-1"><h4 className="font-bold text-sm text-gray-800">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-1">{item.snippet}</p></div>
@@ -309,19 +337,21 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+            
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
               <h3 className="text-lg font-bold mb-4">Post Manually</h3>
               <div className="space-y-4">
-                <div className="flex gap-4">
-                  <input value={schemeTitle} onChange={(e)=>setSchemeTitle(e.target.value)} placeholder="Scheme Title" className="border p-3 rounded-xl flex-1 outline-none" />
-                  <select value={schemeCategory} onChange={(e)=>setSchemeCategory(e.target.value)} className="border p-3 rounded-xl outline-none bg-white">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <input value={schemeTitle} onChange={(e)=>setSchemeTitle(e.target.value)} placeholder="Scheme Title" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500" />
+                  <select value={schemeCategory} onChange={(e)=>setSchemeCategory(e.target.value)} className="border p-3 rounded-xl outline-none bg-white focus:ring-2 focus:ring-green-500">
                     <option value="Scheme">Scheme</option><option value="Subsidy">Subsidy</option><option value="Loan">Loan</option>
                   </select>
                 </div>
-                <textarea value={schemeDesc} onChange={(e)=>setSchemeDesc(e.target.value)} placeholder="Description" className="border p-3 rounded-xl w-full h-20 outline-none" />
-                <button onClick={handleAddScheme} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700">Post Scheme</button>
+                <textarea value={schemeDesc} onChange={(e)=>setSchemeDesc(e.target.value)} placeholder="Description" className="border p-3 rounded-xl w-full h-20 outline-none focus:ring-2 focus:ring-green-500" />
+                <button onClick={handleAddScheme} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 w-full sm:w-auto shadow-lg transition-colors">Post Scheme</button>
               </div>
             </div>
+
             <div className="grid gap-4">
               {schemes.map(s => (
                 <div key={s.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-start hover:shadow-md transition">
@@ -330,7 +360,7 @@ const AdminDashboard = () => {
                     <p className="text-gray-500 text-sm leading-relaxed max-w-2xl">{s.description}</p>
                     <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block">{s.category}</span>
                   </div>
-                  <button onClick={() => handleDelete("schemes", s.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full"><Trash2 size={20} /></button>
+                  <button onClick={() => handleDelete("schemes", s.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={20} /></button>
                 </div>
               ))}
             </div>
@@ -339,36 +369,38 @@ const AdminDashboard = () => {
 
         {/* FARMERS TAB */}
         {activeTab === "farmers" && (
-          <div className="animate-fade-in relative">
+          <div className="animate-fade-up relative">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Registered Farmers</h2>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-               <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Actions</th></tr></thead>
-                  <tbody>
-                    {farmers.length === 0 ? (
-                        <tr><td colSpan="3" className="p-6 text-center text-gray-500">No farmers found.</td></tr>
-                    ) : (
-                        farmers.map(f => (
-                        <tr key={f.id} className="border-b">
-                            <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
-                            <td className="p-4 text-gray-600">{f.email}</td>
-                            <td className="p-4 flex items-center gap-2">
-                                <a href={`mailto:${f.email}?subject=Message from Kisan Sahayak Admin`} className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-200 text-sm transition">
-                                    <Mail size={16} /> Contact
-                                </a>
-                                {/* ✅ Chat Button */}
-                                <button 
-                                  onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })}
-                                  className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold hover:bg-green-200 text-sm transition"
-                                >
-                                  <MessageSquare size={16} /> Chat
-                                </button>
-                            </td>
-                        </tr>
-                        ))
-                    )}
-                  </tbody>
-               </table>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left min-w-[600px]">
+                    <thead className="bg-gray-50 border-b"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Actions</th></tr></thead>
+                    <tbody>
+                      {farmers.length === 0 ? (
+                          <tr><td colSpan="3" className="p-6 text-center text-gray-500">No farmers found.</td></tr>
+                      ) : (
+                          farmers.map(f => (
+                          <tr key={f.id} className="border-b hover:bg-gray-50 transition-colors">
+                              <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
+                              <td className="p-4 text-gray-600">{f.email}</td>
+                              <td className="p-4 flex items-center gap-2">
+                                  <a href={`mailto:${f.email}?subject=Message from Kisan Sahayak Admin`} className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-200 text-sm transition">
+                                      <Mail size={16} /> Contact
+                                  </a>
+                                  {/* ✅ Chat Button */}
+                                  <button 
+                                    onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })}
+                                    className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold hover:bg-green-200 text-sm transition"
+                                  >
+                                    <MessageSquare size={16} /> Chat
+                                  </button>
+                              </td>
+                          </tr>
+                          ))
+                      )}
+                    </tbody>
+                 </table>
+               </div>
             </div>
 
             {/* ✅ Chat Interface Overlay */}
@@ -385,11 +417,11 @@ const AdminDashboard = () => {
 
         {/* COMPLAINTS TAB */}
         {activeTab === "complaints" && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-up">
             <h2 className="text-3xl font-bold mb-6 text-gray-800">Help Desk & Complaints</h2>
             <div className="space-y-4">
                 {complaints.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl">No complaints found.</p> : complaints.map(c => (
-                   <div key={c.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start gap-4">
+                   <div key={c.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start gap-4 hover:shadow-md transition">
                       <div className="flex-1">
                          <div className="flex items-center gap-3 mb-2">
                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${c.status==="Resolved"?"bg-green-100 text-green-700":"bg-yellow-100 text-yellow-700"}`}>{c.status}</span>

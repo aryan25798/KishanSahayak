@@ -1,6 +1,6 @@
 // src/components/Weather.jsx
 import { useState, useEffect } from "react";
-import { Search, CloudRain, Wind, Droplets, MapPin, Thermometer, Navigation, Loader, Sun, Cloud } from "lucide-react";
+import { Search, CloudRain, Wind, Droplets, MapPin, Navigation, Loader, Sun, Cloud } from "lucide-react";
 
 const Weather = () => {
   const [city, setCity] = useState("Delhi");
@@ -97,7 +97,7 @@ const Weather = () => {
   }, []);
 
   return (
-    <div className="pt-24 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
+    <div className="pt-24 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center font-sans">
       <div className="max-w-4xl w-full bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/50 flex flex-col md:flex-row min-h-[500px]">
         
         {/* Left Panel */}
@@ -131,15 +131,18 @@ const Weather = () => {
 
           {weather && !loading && (
             <div className="grid grid-cols-2 gap-4 mt-auto">
-              <div className="p-4 bg-blue-50 rounded-2xl flex flex-col items-center justify-center border border-blue-100">
+              {/* ✨ UPDATED WIND CARD */}
+              <div className="p-4 bg-white/60 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center border border-white/50 shadow-sm hover:shadow-md transition-shadow">
                 <Wind className="text-blue-500 mb-2" />
                 <span className="text-xl font-bold text-gray-800">{weather.wind} km/h</span>
-                <span className="text-xs text-gray-500 uppercase font-bold">Wind</span>
+                <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Wind</span>
               </div>
-              <div className="p-4 bg-blue-50 rounded-2xl flex flex-col items-center justify-center border border-blue-100">
+              
+              {/* ✨ UPDATED HUMIDITY CARD */}
+              <div className="p-4 bg-white/60 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center border border-white/50 shadow-sm hover:shadow-md transition-shadow">
                 <Droplets className="text-blue-500 mb-2" />
                 <span className="text-xl font-bold text-gray-800">{weather.humidity}%</span>
-                <span className="text-xs text-gray-500 uppercase font-bold">Humidity</span>
+                <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Humidity</span>
               </div>
             </div>
           )}
