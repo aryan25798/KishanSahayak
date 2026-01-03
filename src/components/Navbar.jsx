@@ -17,7 +17,8 @@ import {
   Stethoscope,
   Tractor,
   LifeBuoy,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck // Added ShieldCheck for Admin Icon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import GoogleTranslate from "./GoogleTranslate"; 
@@ -38,6 +39,9 @@ const Navbar = () => {
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
+
+  // Check if user is Admin
+  const isAdmin = user?.email === "admin@system.com" || userData?.role === "admin";
 
   // --- SMART SCROLL LOGIC ---
   useEffect(() => {
@@ -72,7 +76,7 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   }, [location]);
 
-  // --- VOICE NAVIGATION HANDLER (Kept logic same, improved UI) ---
+  // --- VOICE NAVIGATION HANDLER ---
   const handleVoiceNav = () => {
     if (!voiceSupported) {
       toast.error("Voice not supported in this browser");
@@ -120,12 +124,19 @@ const Navbar = () => {
           support: "/support", help: "/support",
           equipment: "/equipment", tractor: "/equipment",
           home: "/", dashboard: "/",
-          farm: "/my-farm", profile: "/my-farm"
+          farm: "/my-farm", profile: "/my-farm",
+          admin: "/admin" // Admin voice command
         };
 
         let found = false;
         for (const [key, path] of Object.entries(routes)) {
           if (command.includes(key)) {
+            // Security check for voice navigation
+            if (path === "/admin" && !isAdmin) {
+                toast.error("Access Denied: Admins Only");
+                return;
+            }
+
             navigate(path);
             toast.success(`Navigating to ${key.charAt(0).toUpperCase() + key.slice(1)}`);
             found = true;
@@ -161,6 +172,11 @@ const Navbar = () => {
     { name: "Mandi", path: "/market", icon: Store },
     { name: "Doctor", path: "/doctor", icon: Stethoscope },
   ];
+
+  // Dynamically add Admin link if user is admin
+  if (isAdmin) {
+    navLinks.push({ name: "Admin", path: "/admin", icon: ShieldCheck });
+  }
 
   return (
     <>
