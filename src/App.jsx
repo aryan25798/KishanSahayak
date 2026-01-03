@@ -10,19 +10,21 @@ import Verify from "./components/Verify";
 import Schemes from "./components/Schemes"; 
 import ContactSupport from "./components/ContactSupport"; 
 import ProtectedRoute from "./components/ProtectedRoute"; 
-// ✅ NEW FEATURE IMPORTS
 import MarketPrices from "./components/MarketPrices";
 import CommunityForum from "./components/CommunityForum";
 import FarmerMap from "./components/FarmerMap"; 
-import EquipmentMarketplace from "./components/EquipmentMarketplace"; // ✅ Import Equipment Module
+import EquipmentMarketplace from "./components/EquipmentMarketplace"; 
+// ✅ NEW IMPORT
+import CropDoctor from "./components/CropDoctor"; 
 
 import { motion } from "framer-motion";
 import "./i18n"; 
-import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf, MapPinned, Tractor } from "lucide-react";
+import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf, MapPinned, Tractor, Stethoscope } from "lucide-react";
 
 // ANIMATED HERO SECTION & LANDING PAGE
 const Home = () => (
-  <div className="pt-16 min-h-screen bg-slate-50 font-sans selection:bg-emerald-200">
+  // Updated padding to prevent navbar overlap
+  <div className="pt-20 md:pt-24 min-h-screen bg-slate-50 font-sans selection:bg-emerald-200">
     
     {/* 1. HERO BANNER */}
     <div className="relative w-full min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -125,6 +127,23 @@ const Home = () => (
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         
+        {/* ✅ NEW: CROP DOCTOR CARD */}
+        <Link to="/doctor" className="group relative bg-white border-2 border-red-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-red-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 to-red-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-red-200">
+              <Stethoscope size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-red-700 transition-colors">Crop Doctor</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Take a photo of your sick plant. Our AI identifies the disease and suggests organic & chemical cures instantly.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-red-50 text-red-700 font-bold flex items-center justify-center gap-2 group-hover:bg-red-600 group-hover:text-white transition-all">
+              Diagnose Now <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
         {/* Weather Card */}
         <Link to="/weather" className="group relative bg-white border-2 border-blue-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-blue-600"></div>
@@ -142,7 +161,7 @@ const Home = () => (
           </div>
         </Link>
 
-        {/* Equipment Marketplace Card ✅ ADDED */}
+        {/* Equipment Marketplace Card */}
         <Link to="/equipment" className="group relative bg-white border-2 border-amber-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-amber-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
           <div className="relative z-10">
@@ -328,12 +347,21 @@ function App() {
               } 
             />
             
-            {/* ✅ NEW EQUIPMENT ROUTE */}
+            {/* ✅ NEW: CROP DOCTOR ROUTE */}
+            <Route 
+              path="/doctor" 
+              element={
+                <ProtectedRoute>
+                  <CropDoctor />
+                </ProtectedRoute>
+              } 
+            />
+            
             <Route 
               path="/equipment" 
               element={
                 <ProtectedRoute>
-                  <div className="pt-20"> {/* Padding for navbar */}
+                  <div className="pt-24"> 
                     <EquipmentMarketplace />
                   </div>
                 </ProtectedRoute>

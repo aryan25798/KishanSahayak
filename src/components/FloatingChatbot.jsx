@@ -16,7 +16,7 @@ const FloatingChatbot = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   
   const [messages, setMessages] = useState([
-    { text: "Namaste! I am Kisan Sahayak. How can I help your farm?", sender: "bot" }
+    { text: "Namaste! I am Kisan Sahayak. How can I help your farm today?", sender: "bot" }
   ]);
   const [loading, setLoading] = useState(false);
   
@@ -24,6 +24,7 @@ const FloatingChatbot = () => {
   const speechRef = useRef(window.speechSynthesis);
   const chatEndRef = useRef(null); 
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
@@ -38,36 +39,24 @@ const FloatingChatbot = () => {
       recognition.interimResults = false;
       recognition.lang = "en-IN"; 
 
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
+      recognition.onstart = () => setIsListening(true);
 
       recognition.onresult = (e) => {
         const transcript = e.results[0][0].transcript;
         setInput(transcript);
       };
 
-      // ✅ IMPROVED ERROR HANDLING
       recognition.onerror = (e) => {
         console.error("Speech recognition error:", e.error);
-        
         if (e.error === 'network') {
           alert("Network Error: Voice recognition requires an active internet connection.");
         } else if (e.error === 'not-allowed') {
           alert("Microphone blocked. Please allow access in browser settings.");
-        } else if (e.error === 'no-speech') {
-          // Ignore no-speech (just silence)
-        } else {
-          alert("Voice Error: " + e.error);
         }
-        
         setIsListening(false);
       };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
+      recognition.onend = () => setIsListening(false);
       recognitionRef.current = recognition;
     } else {
       console.warn("Speech Recognition API not supported in this browser.");
@@ -79,7 +68,6 @@ const FloatingChatbot = () => {
       alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
       return;
     }
-    
     if (isListening) {
       recognitionRef.current.stop();
     } else {
@@ -111,21 +99,51 @@ const FloatingChatbot = () => {
   const handleSend = async () => {
     if (!input && !image) return;
 
+    // 1. Add User Message to State
     const userMsg = { text: input, sender: "user", image: imagePreview };
     setMessages(prev => [...prev, userMsg]);
-    setInput(""); setImage(null); setImagePreview(null); setLoading(true);
+    
+    // Clear Input UI immediately
+    const currentInput = input; // Store for API call
+    const currentImage = image; // Store for API call
+    setInput(""); 
+    setImage(null); 
+    setImagePreview(null); 
+    setLoading(true);
 
     try {
-      // ✅ Using Gemini 2.5 Flash
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      // ✅ STRICTLY USING GEMINI 2.5 AS REQUESTED
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash",
+        systemInstruction: "You are Kisan Sahayak, an expert agricultural AI assistant for Indian farmers. Keep answers concise, practical, and easy to understand."
+      });
       
-      let prompt = input ? [input] : [];
-      if (image) {
-        prompt.push(await fileToGenerativePart(image));
-        if (!input) prompt.push("Analyze this agricultural image.");
+      // ✅ FIX: Filter out the initial 'bot' greeting from history.
+      // The API requires history to start with 'user'.
+      const history = messages
+        .filter((msg, index) => !(index === 0 && msg.sender === "bot")) // Remove first welcome message
+        .map(msg => ({
+          role: msg.sender === "user" ? "user" : "model",
+          parts: [{ text: msg.text }] 
+        }));
+
+      const chat = model.startChat({
+        history: history,
+        generationConfig: {
+          maxOutputTokens: 500, 
+        },
+      });
+
+      // Prepare current message parts
+      let parts = [{ text: currentInput }];
+      if (currentImage) {
+        const imgPart = await fileToGenerativePart(currentImage);
+        parts.push(imgPart);
+        if (!currentInput) parts.push({ text: "Analyze this agricultural image and tell me if there are diseases or issues." });
       }
 
-      const result = await model.generateContent(prompt);
+      // Send Message
+      const result = await chat.sendMessage(parts);
       const text = result.response.text();
 
       setMessages(prev => [...prev, { text: text, sender: "bot" }]);
@@ -133,7 +151,7 @@ const FloatingChatbot = () => {
 
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { text: "Connection error. Please try again.", sender: "bot" }]);
+      setMessages(prev => [...prev, { text: "I am having trouble connecting to the farm network. Please try again.", sender: "bot" }]);
     }
     setLoading(false);
   };
@@ -228,9 +246,9 @@ const FloatingChatbot = () => {
                 {loading && (
                   <div className="flex items-center gap-1.5 text-gray-400 text-xs ml-2 mt-2">
                     <div className="flex space-x-1">
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce delay-100"></div>
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce delay-200"></div>
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6 }} className="w-1.5 h-1.5 bg-green-400 rounded-full"></motion.div>
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.1 }} className="w-1.5 h-1.5 bg-green-400 rounded-full"></motion.div>
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1.5 h-1.5 bg-green-400 rounded-full"></motion.div>
                     </div>
                   </div>
                 )}
