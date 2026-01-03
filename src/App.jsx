@@ -14,7 +14,6 @@ import CommunityForum from "./components/CommunityForum";
 import FarmerMap from "./components/FarmerMap"; 
 import EquipmentMarketplace from "./components/EquipmentMarketplace"; 
 import CropDoctor from "./components/CropDoctor"; 
-// ✅ NEW IMPORT
 import MyFarm from "./components/MyFarm";
 
 import { motion } from "framer-motion";
@@ -30,7 +29,8 @@ import {
   MapPinned, 
   Tractor, 
   Stethoscope,
-  Sprout // ✅ Added Sprout icon for My Farm
+  Sprout,
+  Headset // ✅ Added Headset icon for Support
 } from "lucide-react";
 
 // ANIMATED HERO SECTION & LANDING PAGE
@@ -138,7 +138,7 @@ const Home = () => (
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         
-        {/* ✅ ADDED: MY FARM CARD */}
+        {/* MY FARM CARD */}
         <Link to="/my-farm" className="group relative bg-white border-2 border-green-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-green-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-green-600"></div>
           <div className="relative z-10">
@@ -291,6 +291,23 @@ const Home = () => (
           </div>
         </Link>
 
+        {/* ✅ NEW: Contact Support Card */}
+        <Link to="/support" className="group relative bg-white border-2 border-slate-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-slate-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-slate-400 to-slate-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-slate-200">
+              <Headset size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-slate-700 transition-colors">24/7 Support</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Facing issues? Chat with our support team or raise a ticket for quick resolution.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-slate-50 text-slate-700 font-bold flex items-center justify-center gap-2 group-hover:bg-slate-600 group-hover:text-white transition-all">
+              Contact Us <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
       </div>
     </div>
   </div>
@@ -317,7 +334,7 @@ function App() {
               } 
             />
             
-            {/* ✅ ADDED ROUTE FOR MY FARM */}
+            {/* MY FARM ROUTE */}
             <Route 
               path="/my-farm" 
               element={

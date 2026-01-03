@@ -1,8 +1,24 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { auth } from "../firebase";
-import { LogOut, User, Menu, Sprout, X, Mic, MicOff } from "lucide-react";
+import { 
+  LogOut, 
+  User, 
+  Menu, 
+  Sprout, 
+  X, 
+  Mic, 
+  MicOff, 
+  LayoutDashboard,
+  CloudSun,
+  ScrollText,
+  Store,
+  Stethoscope,
+  Tractor,
+  LifeBuoy,
+  ChevronRight
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import GoogleTranslate from "./GoogleTranslate"; 
 import toast from "react-hot-toast";
@@ -10,30 +26,59 @@ import toast from "react-hot-toast";
 const Navbar = () => {
   const { user, userData } = useAuth();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
   
-  // --- Voice Navigation State ---
+  // UI States
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Voice States
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
-  
-  // Refs to keep track of the recognition instance and timer across renders
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
 
+  // --- SMART SCROLL LOGIC ---
   useEffect(() => {
-    // Check if browser supports Speech Recognition
+    const controlNavbar = () => {
+      if (typeof window !== 'undefined') {
+        const currentScrollY = window.scrollY;
+        
+        // Hide if scrolling down AND not at the top AND mobile menu is closed
+        if (currentScrollY > lastScrollY && currentScrollY > 100 && !isMobileMenuOpen) {
+          setIsVisible(false);
+        } else {
+          // Show if scrolling up
+          setIsVisible(true);
+        }
+        setLastScrollY(currentScrollY);
+      }
+    };
+
+    window.addEventListener('scroll', controlNavbar);
+    return () => window.removeEventListener('scroll', controlNavbar);
+  }, [lastScrollY, isMobileMenuOpen]);
+
+  // Check Voice Support
+  useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       setVoiceSupported(true);
     }
   }, []);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
+
+  // --- VOICE NAVIGATION HANDLER ---
   const handleVoiceNav = () => {
     if (!voiceSupported) {
-      toast.error("Voice navigation not supported in this browser.");
+      toast.error("Voice not supported in this browser");
       return;
     }
 
-    // If already listening, stop it manually (toggle behavior)
     if (isListening) {
       recognitionRef.current?.stop();
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -45,18 +90,13 @@ const Navbar = () => {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-      
-      recognition.lang = 'en-US'; // Set language
-      recognition.continuous = true; // ✅ IMPORTANT: Don't stop immediately on pause
-      recognition.interimResults = false; // We only want final results
-
-      // --- Event Handlers ---
+      recognition.lang = 'en-US'; 
+      recognition.continuous = true; 
+      recognition.interimResults = false; 
 
       recognition.onstart = () => {
         setIsListening(true);
-        toast("Listening... Say 'Go to Weather' etc.", { icon: '🎙️', duration: 4000 });
-
-        // ✅ AUTO-STOP TIMER: Stop after 8 seconds of silence
+        toast("Listening... Say 'Go to Weather'", { icon: '🎙️', duration: 3000 });
         silenceTimerRef.current = setTimeout(() => {
           recognition.stop();
           toast("Mic closed due to silence.", { icon: 'mic_off' });
@@ -64,76 +104,47 @@ const Navbar = () => {
       };
 
       recognition.onresult = (event) => {
-        // Clear silence timer because the user spoke
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-
-        // Get the latest transcript
         const lastResultIndex = event.results.length - 1;
         const command = event.results[lastResultIndex][0].transcript.toLowerCase();
         
-        console.log("Voice Command Received:", command);
-        
-        // Stop listening immediately after a command is caught
+        console.log("Command:", command);
         recognition.stop();
         setIsListening(false);
 
-        // --- NAVIGATION LOGIC ---
-        if (command.includes("weather") || command.includes("forecast")) {
-          navigate("/weather");
-          toast.success("Navigating to Weather");
-        } else if (command.includes("scheme") || command.includes("subsidy")) {
-          navigate("/schemes");
-          toast.success("Navigating to Schemes");
-        } else if (command.includes("market") || command.includes("price") || command.includes("mandi")) {
-          navigate("/market");
-          toast.success("Navigating to Market Prices");
-        } else if (command.includes("doctor") || command.includes("disease") || command.includes("plant")) {
-          navigate("/doctor");
-          toast.success("Navigating to Crop Doctor");
-        } else if (command.includes("support") || command.includes("help") || command.includes("contact")) {
-          navigate("/support");
-          toast.success("Navigating to Support");
-        } else if (command.includes("equipment") || command.includes("tractor") || command.includes("rent")) {
-          navigate("/equipment"); // Added Equipment route
-          toast.success("Navigating to Equipment");
-        } else if (command.includes("home") || command.includes("dashboard")) {
-          navigate("/");
-          toast.success("Navigating Home");
-        } else if (command.includes("farm") || command.includes("profile")) {
-          navigate("/my-farm");
-          toast.success("Navigating to My Farm");
-        } else {
-          toast.error(`Unknown command: "${command}"`);
+        const routes = {
+          weather: "/weather", forecast: "/weather",
+          scheme: "/schemes", subsidy: "/schemes",
+          market: "/market", mandi: "/market", price: "/market",
+          doctor: "/doctor", disease: "/doctor",
+          support: "/support", help: "/support",
+          equipment: "/equipment", tractor: "/equipment",
+          home: "/", dashboard: "/",
+          farm: "/my-farm", profile: "/my-farm"
+        };
+
+        let found = false;
+        for (const [key, path] of Object.entries(routes)) {
+          if (command.includes(key)) {
+            navigate(path);
+            toast.success(`Navigating to ${key.charAt(0).toUpperCase() + key.slice(1)}`);
+            found = true;
+            break;
+          }
         }
+        if (!found) toast.error("Command not recognized.");
       };
 
       recognition.onerror = (event) => {
-        console.error("Voice Error:", event.error);
-        
-        // Don't shut down UI on 'no-speech' error immediately if using continuous mode
         if (event.error !== 'no-speech') {
             setIsListening(false);
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         }
-        
-        if (event.error === 'network') {
-          toast.error("Network Error: Voice requires HTTPS connection.");
-        } else if (event.error === 'not-allowed') {
-          toast.error("Microphone access denied.");
-        }
       };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      };
-
-      // Start listening
+      recognition.onend = () => setIsListening(false);
       recognition.start();
-
     } catch (error) {
-      console.error("Initialization Error:", error);
-      toast.error("Failed to start voice navigation.");
+      console.error(error);
       setIsListening(false);
     }
   };
@@ -141,148 +152,214 @@ const Navbar = () => {
   const handleLogout = async () => {
     await auth.signOut();
     navigate("/login");
-    setIsMobileMenuOpen(false);
   };
 
+  const navLinks = [
+    { name: "Home", path: "/", icon: LayoutDashboard },
+    { name: "Weather", path: "/weather", icon: CloudSun },
+    { name: "Schemes", path: "/schemes", icon: ScrollText },
+    { name: "Mandi", path: "/market", icon: Store },
+    { name: "Doctor", path: "/doctor", icon: Stethoscope },
+  ];
+
+  // ✅ HIDE NAVBAR ON LOGIN PAGE
+  if (location.pathname === "/login") {
+    return null;
+  }
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-emerald-100 shadow-sm transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="bg-gradient-to-tr from-green-600 to-emerald-400 p-2 rounded-lg text-white shadow-lg group-hover:scale-110 transition-transform">
-              <Sprout size={24} />
-            </div>
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-800 to-emerald-600 tracking-tight">
-              Kisan Sahayak
-            </span>
-          </Link>
+    <>
+      {/* --- NAVBAR CONTAINER --- */}
+      <nav 
+        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-500 ease-in-out transform ${
+          isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+        }`}
+      >
+        {/* Glassmorphism Background Layer */}
+        <div className={`absolute inset-0 bg-white/70 backdrop-blur-xl border-b border-white/40 shadow-sm transition-all duration-300 ${lastScrollY > 20 ? "shadow-md bg-white/80" : ""}`}></div>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-gray-600 hover:text-green-700 font-medium transition-colors">Home</Link>
-            <Link to="/weather" className="text-gray-600 hover:text-green-700 font-medium transition-colors">Weather</Link>
-            <Link to="/schemes" className="text-gray-600 hover:text-green-700 font-medium transition-colors">Schemes</Link>
-            <Link to="/market" className="text-gray-600 hover:text-green-700 font-medium transition-colors">Mandi</Link>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="flex justify-between items-center h-16 md:h-20">
             
-            {/* Voice Navigation Button */}
-            {voiceSupported && (
-              <button 
-                onClick={handleVoiceNav}
-                className={`p-2 rounded-full transition-all duration-300 flex items-center justify-center ${
-                  isListening 
-                    ? "bg-red-100 text-red-600 ring-4 ring-red-50 animate-pulse scale-110" 
-                    : "bg-gray-100 text-gray-600 hover:bg-emerald-100 hover:text-emerald-700"
-                }`}
-                title="Voice Navigation (e.g. 'Go to Weather')"
-              >
-                {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-              </button>
-            )}
+            {/* --- LOGO SECTION --- */}
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-gradient-to-tr from-emerald-600 to-green-400 rounded-xl text-white shadow-lg shadow-green-500/30 group-hover:scale-105 transition-transform duration-300">
+                 {/* Glow behind logo */}
+                 <div className="absolute -inset-1 bg-green-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-300"></div>
+                 <Sprout size={24} className="relative z-10" strokeWidth={2.5} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors">
+                  Kisan<span className="text-emerald-600">Sahayak</span>
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">AI Powered Farming</span>
+              </div>
+            </Link>
 
-            {/* Google Translate */}
-            <div className="scale-90">
-                <GoogleTranslate />
+            {/* --- CENTER LINKS (DESKTOP) --- */}
+            <div className="hidden lg:flex items-center bg-slate-100/50 p-1.5 rounded-full border border-slate-200/60 backdrop-blur-md">
+              {navLinks.map((link) => {
+                const isActive = location.pathname === link.path;
+                return (
+                  <Link 
+                    key={link.name} 
+                    to={link.path}
+                    className={`relative px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
+                      isActive ? "text-emerald-700" : "text-slate-500 hover:text-emerald-600 hover:bg-white/50"
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-pill"
+                        className="absolute inset-0 bg-white rounded-full shadow-[0_2px_10px_-2px_rgba(0,0,0,0.1)] border border-slate-100"
+                        initial={false}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                       {/* Only show icon on active to keep it clean, or hover */}
+                       {isActive && <link.icon size={16} />}
+                       {link.name}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
 
-            {user ? (
-              <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
-                {userData?.role === 'admin' && (
-                  <Link to="/admin" className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-full hover:bg-black transition shadow-md">
-                    ADMIN
-                  </Link>
-                )}
-                
-                <div className="flex items-center gap-3">
-                  <div className="text-right hidden lg:block">
-                    <p className="text-sm font-bold text-gray-800 leading-none">{user.displayName || "Farmer"}</p>
-                    <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{userData?.role || "Member"}</p>
-                  </div>
-                  <Link to="/my-farm" className="bg-green-100 p-2 rounded-full text-green-700 border border-green-200 hover:bg-green-200 transition">
-                    <User size={20} />
-                  </Link>
-                  <button 
-                    onClick={handleLogout} 
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                    title="Logout"
-                  >
-                    <LogOut size={20} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <Link to="/login" className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-500 text-white font-bold rounded-full shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all">
-                Login
-              </Link>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center gap-3">
-            {/* Mobile Voice Button */}
-            {voiceSupported && (
-              <button 
-                onClick={handleVoiceNav}
-                className={`p-2 rounded-full transition-all ${isListening ? "text-red-500 bg-red-50 animate-pulse" : "text-gray-600"}`}
-              >
-                {isListening ? <MicOff size={24} /> : <Mic size={24} />}
-              </button>
-            )}
-            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Dropdown */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-t border-emerald-100 shadow-xl overflow-hidden"
-          >
-            <div className="p-4 flex flex-col gap-4">
-              <Link to="/" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
-              <Link to="/weather" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Weather</Link>
-              <Link to="/schemes" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Schemes</Link>
-              <Link to="/market" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Mandi Prices</Link>
-              <Link to="/doctor" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Crop Doctor</Link>
-              <Link to="/equipment" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Equipment</Link>
-              <Link to="/support" className="text-gray-800 font-medium p-2 hover:bg-emerald-50 rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>Support</Link>
+            {/* --- RIGHT ACTIONS --- */}
+            <div className="flex items-center gap-2 md:gap-3">
               
-              <div className="p-2">
-                  <GoogleTranslate />
+              {/* Voice Button (Animated) */}
+              {voiceSupported && (
+                <button 
+                  onClick={handleVoiceNav}
+                  className={`relative p-2.5 rounded-full transition-all duration-300 group ${
+                    isListening 
+                      ? "bg-red-50 text-red-600 shadow-lg shadow-red-100 ring-2 ring-red-100" 
+                      : "bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-100"
+                  }`}
+                  title="Voice Command"
+                >
+                  {isListening && <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-20"></span>}
+                  {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                </button>
+              )}
+
+              {/* Language Selector */}
+              <div className="hidden md:block scale-90">
+                 <GoogleTranslate />
               </div>
 
+              {/* User Profile */}
               {user ? (
-                <div className="border-t border-gray-100 pt-4 mt-2">
-                    <Link to="/my-farm" className="flex items-center gap-3 mb-4 px-2 hover:bg-gray-50 rounded-lg p-2" onClick={() => setIsMobileMenuOpen(false)}>
-                      <div className="bg-green-100 p-2 rounded-full text-green-700">
-                        <User size={20} />
+                <div className="flex items-center gap-3 pl-2">
+                   {/* Desktop Profile Pill */}
+                   <Link to="/my-farm" className="hidden md:flex items-center gap-3 pr-4 pl-1 py-1 bg-white border border-slate-200 rounded-full hover:border-emerald-300 hover:shadow-md transition-all group">
+                      <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200">
+                        <User size={18} />
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-800">{user.displayName || "Farmer"}</p>
-                        <p className="text-xs text-gray-500 uppercase">{userData?.role || "Member"}</p>
+                      <div className="text-left">
+                         <p className="text-xs font-bold text-slate-800 leading-tight">{user.displayName?.split(" ")[0] || "Farmer"}</p>
+                         <p className="text-[9px] text-slate-400 font-bold uppercase">{userData?.role || "Member"}</p>
                       </div>
-                    </Link>
-                    <button onClick={handleLogout} className="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition flex items-center justify-center gap-2">
-                      <LogOut size={18} /> Logout
-                    </button>
+                   </Link>
+
+                   {/* Mobile Profile Icon */}
+                   <Link to="/my-farm" className="md:hidden w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                     <User size={20} />
+                   </Link>
+
+                   {/* Logout Button */}
+                   <button onClick={handleLogout} className="hidden md:flex p-2.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                     <LogOut size={20} />
+                   </button>
                 </div>
               ) : (
-                <Link to="/login" className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white font-bold rounded-xl text-center shadow-md" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link to="/login" className="hidden md:flex px-6 py-2.5 bg-slate-900 hover:bg-black text-white text-sm font-bold rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
                   Login
                 </Link>
               )}
+
+              {/* Mobile Menu Toggle */}
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2.5 text-slate-700 bg-white border border-slate-100 rounded-xl shadow-sm active:scale-95 transition-all"
+              >
+                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
             </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* --- MOBILE MENU OVERLAY (Slide Down) --- */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-white/95 backdrop-blur-xl pt-24 px-6 md:hidden overflow-y-auto"
+          >
+             <div className="flex flex-col space-y-2 pb-10">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Navigation</p>
+                
+                {navLinks.map((link, idx) => (
+                  <motion.div
+                    key={link.name}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Link 
+                      to={link.path} 
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
+                         location.pathname === link.path 
+                         ? "bg-emerald-50 border border-emerald-100 text-emerald-800" 
+                         : "bg-slate-50 border border-slate-100 text-slate-600"
+                      }`}
+                    >
+                       <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-xl ${location.pathname === link.path ? "bg-white text-emerald-600" : "bg-white text-slate-400"}`}>
+                             <link.icon size={20} />
+                          </div>
+                          <span className="font-bold text-lg">{link.name}</span>
+                       </div>
+                       <ChevronRight size={16} className="opacity-50" />
+                    </Link>
+                  </motion.div>
+                ))}
+
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                   <Link to="/equipment" onClick={() => setIsMobileMenuOpen(false)} className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-amber-800 flex flex-col items-center gap-2 text-center">
+                      <Tractor size={24} className="mb-1" />
+                      <span className="text-sm font-bold">Equipment</span>
+                   </Link>
+                   <Link to="/support" onClick={() => setIsMobileMenuOpen(false)} className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-blue-800 flex flex-col items-center gap-2 text-center">
+                      <LifeBuoy size={24} className="mb-1" />
+                      <span className="text-sm font-bold">Support</span>
+                   </Link>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-100">
+                    <div className="mb-6"><GoogleTranslate /></div>
+                    {user ? (
+                      <button onClick={handleLogout} className="w-full py-4 bg-red-50 text-red-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100">
+                        <LogOut size={20} /> Logout
+                      </button>
+                    ) : (
+                      <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-200">
+                        Login Now
+                      </Link>
+                    )}
+                </div>
+             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   );
 };
 
