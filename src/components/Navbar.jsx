@@ -72,7 +72,7 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   }, [location]);
 
-  // --- VOICE NAVIGATION HANDLER ---
+  // --- VOICE NAVIGATION HANDLER (Kept logic same, improved UI) ---
   const handleVoiceNav = () => {
     if (!voiceSupported) {
       toast.error("Voice not supported in this browser");
@@ -161,11 +161,6 @@ const Navbar = () => {
     { name: "Mandi", path: "/market", icon: Store },
     { name: "Doctor", path: "/doctor", icon: Stethoscope },
   ];
-
-  // ✅ HIDE NAVBAR ON LOGIN PAGE
-  if (location.pathname === "/login") {
-    return null;
-  }
 
   return (
     <>
