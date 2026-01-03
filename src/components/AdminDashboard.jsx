@@ -12,14 +12,14 @@ import {
 } from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
 import ChatInterface from "./ChatInterface";
-import EquipmentMarketplace from "./EquipmentMarketplace"; // ✅ Imported Equipment Module
+import EquipmentMarketplace from "./EquipmentMarketplace"; 
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("products");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: '' }
+  const [notification, setNotification] = useState(null); 
 
   // Data States
   const [products, setProducts] = useState([]);
@@ -81,6 +81,7 @@ const AdminDashboard = () => {
       navigate("/login");
       return;
     }
+    // Basic Client-side check (Ensure backend rules exist too)
     if (user.email !== "admin@system.com") {
       alert("Access Denied. Admins only.");
       navigate("/");
@@ -255,6 +256,7 @@ const AdminDashboard = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // --- Universal Delete Handler ---
   const handleDelete = async (col, id) => {
     if(window.confirm("Delete this item? This cannot be undone.")) { 
       try {
@@ -270,7 +272,7 @@ const AdminDashboard = () => {
   const handleResolveComplaint = async (id, farmerEmail, farmerName, originalMessage) => {
     if (!replyText) return showToast("Please enter a reply", "error");
 
-    setUploading(true); // Reusing uploading state for sending email loading
+    setUploading(true); 
     try {
       await updateDoc(doc(db, "complaints", id), {
         status: "Resolved",
@@ -449,9 +451,18 @@ const AdminDashboard = () => {
       <h2 className="text-3xl font-bold mb-6 text-gray-800">Help Desk & Complaints</h2>
       <div className="space-y-4">
         {complaints.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl text-center">No active complaints.</p> : complaints.map(c => (
-           <div key={c.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4 hover:shadow-md transition">
+           <div key={c.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4 hover:shadow-md transition group relative">
+              {/* Added Delete Button for Complaints */}
+              <button 
+                onClick={() => handleDelete("complaints", c.id)} 
+                className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors"
+                title="Delete Complaint"
+              >
+                <Trash2 size={18} />
+              </button>
+
               <div className="flex justify-between items-start">
-                  <div className="flex-1">
+                  <div className="flex-1 pr-8">
                       <div className="flex items-center gap-3 mb-2">
                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status==="Resolved"?"bg-green-50 border-green-100 text-green-700":"bg-yellow-50 border-yellow-100 text-yellow-700"}`}>{c.status}</span>
                          <h4 className="font-bold text-lg text-gray-800">{c.subject}</h4>
@@ -548,7 +559,7 @@ const AdminDashboard = () => {
             { id: "farmers", label: "Farmers", icon: Users },
             { id: "complaints", label: "Help Desk", icon: MessageSquare },
             { id: "market", label: "Market Prices", icon: TrendingUp },
-            { id: "equipment", label: "Equipment", icon: Tractor }, // ✅ Added Equipment Tab
+            { id: "equipment", label: "Equipment", icon: Tractor }, 
             { id: "forum", label: "Community", icon: MessageCircle },
           ].map((item) => (
             <button 
@@ -584,7 +595,7 @@ const AdminDashboard = () => {
         {activeTab === "applications" && renderApplications()}
         {activeTab === "complaints" && renderComplaints()}
 
-        {/* ✅ Equipment Tab Render */}
+        {/* Equipment Tab Render */}
         {activeTab === "equipment" && (
            <div className="animate-fade-up">
               <EquipmentMarketplace adminOverride={true} />
@@ -606,7 +617,14 @@ const AdminDashboard = () => {
                                  <td className="p-4 text-gray-600">{f.email}</td>
                                  <td className="p-4 flex items-center gap-2">
                                      <button onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition">
-                                       <MessageSquare size={14} /> Chat
+                                         <MessageSquare size={14} /> Chat
+                                     </button>
+                                     {/* Added Delete Button for Farmers */}
+                                     <button 
+                                        onClick={() => handleDelete("users", f.id)} 
+                                        className="inline-flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100 text-xs transition"
+                                     >
+                                        <Trash2 size={14} /> Delete
                                      </button>
                                  </td>
                              </tr>
@@ -678,6 +696,7 @@ const AdminDashboard = () => {
                            {post.imageUrl && <img src={post.imageUrl} alt="Post" className="h-32 w-auto rounded-lg mb-3 object-cover border bg-gray-50" />}
                            <p className="text-gray-700 text-sm">"{post.text}"</p>
                        </div>
+                       {/* Explicit Forum Post Delete Button */}
                        <button onClick={() => handleDelete("forum_posts", post.id)} className="text-red-600 bg-red-50 px-4 py-2 rounded-lg font-bold hover:bg-red-100 hover:text-red-700 transition flex items-center gap-2 text-xs">
                            <Trash2 size={14}/> Delete Post
                        </button>

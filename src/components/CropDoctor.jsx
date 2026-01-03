@@ -3,16 +3,30 @@ import { useState, useRef, useEffect } from "react";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { 
   Camera, Upload, ScanLine, Leaf, AlertTriangle, 
-  Sprout, Loader2, X, Beaker, Activity, CheckCircle2, ChevronRight 
+  Sprout, Loader2, X, Beaker, Activity, CheckCircle2, ChevronRight,
+  History, Trash2, Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
+
+// Firebase Imports
+import { db } from "../firebase";
+import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "../context/AuthContext";
 
 const CropDoctor = () => {
+  const { user } = useAuth(); // Get current user for history
+  
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // History State
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   
   const fileInputRef = useRef(null);
 
@@ -21,6 +35,76 @@ const CropDoctor = () => {
       setError("CRITICAL: API Key missing in .env");
     }
   }, []);
+
+  // Fetch History on Mount or User Change
+  useEffect(() => {
+    if (user) {
+      fetchHistory();
+    }
+  }, [user]);
+
+  const fetchHistory = async () => {
+    if (!user) return;
+    setHistoryLoading(true);
+    try {
+      const q = query(
+        collection(db, "diagnoses"),
+        where("userId", "==", user.uid),
+        orderBy("timestamp", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const historyData = querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data(),
+        // Convert timestamp to readable date if it exists
+        date: doc.data().timestamp?.toDate().toLocaleDateString() || "Recent"
+      }));
+      setHistory(historyData);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const saveDiagnosis = async (diagnosisData) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, "diagnoses"), {
+        userId: user.uid,
+        name: diagnosisData.name,
+        severity: diagnosisData.severity,
+        organic: diagnosisData.organic,
+        chemical: diagnosisData.chemical,
+        timestamp: serverTimestamp(),
+      });
+      toast.success("Diagnosis saved to history");
+      fetchHistory(); // Refresh list
+    } catch (error) {
+      console.error("Error saving diagnosis:", error);
+    }
+  };
+
+  const deleteHistoryItem = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this record?")) return;
+    
+    try {
+      await deleteDoc(doc(db, "diagnoses", id));
+      setHistory(prev => prev.filter(item => item.id !== id));
+      toast.success("Record deleted");
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const loadHistoryItem = (item) => {
+    setResult(item);
+    setShowHistory(false); // Switch back to result view
+    // Note: We don't restore the image preview as we aren't storing images in DB to save costs
+    setPreview(null); 
+    setImage(null);
+  };
 
   const fileToGenerativePart = async (file) => {
     return new Promise((resolve) => {
@@ -39,6 +123,7 @@ const CropDoctor = () => {
       setPreview(URL.createObjectURL(file));
       setResult(null);
       setError(null);
+      setShowHistory(false); // Hide history when new image selected
     }
   };
 
@@ -83,6 +168,11 @@ const CropDoctor = () => {
       const data = JSON.parse(text);
       
       setResult(data);
+      
+      // Auto-save to history if it's a valid plant analysis
+      if (data.name !== "Not a Plant") {
+        saveDiagnosis(data);
+      }
 
     } catch (err) {
       console.error("Error:", err);
@@ -188,9 +278,64 @@ const CropDoctor = () => {
           </div>
         </div>
 
-        {/* RIGHT PANEL: Results (Clean Light Mode) */}
+        {/* RIGHT PANEL: Results or History */}
         <div className="lg:w-[55%] bg-white p-8 lg:p-12 relative flex flex-col">
-          {result ? (
+          
+          {/* History Toggle Button (Absolute Top Right) */}
+          {user && (
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              className="absolute top-8 right-8 flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors font-medium text-sm z-20"
+            >
+              <History size={18} /> {showHistory ? "Back to Scan" : "History"}
+            </button>
+          )}
+
+          {/* CONTENT SWITCHER: HISTORY OR RESULTS */}
+          {showHistory ? (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+              className="flex-1 flex flex-col h-full"
+            >
+              <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                <Calendar className="text-emerald-500" /> Past Diagnoses
+              </h2>
+              
+              {historyLoading ? (
+                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-emerald-500" /></div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">No history found.</div>
+              ) : (
+                <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                  {history.map((item) => (
+                    <div 
+                      key={item.id}
+                      onClick={() => loadHistoryItem(item)}
+                      className="p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition cursor-pointer flex justify-between items-center group"
+                    >
+                      <div>
+                        <h4 className="font-bold text-slate-700">{item.name}</h4>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                          <span className="flex items-center gap-1"><Calendar size={12}/> {item.date}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            item.severity?.toLowerCase().includes("high") ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
+                          }`}>
+                            {item.severity}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={(e) => deleteHistoryItem(item.id, e)}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          ) : result ? (
             <motion.div 
               initial={{ opacity: 0, x: 20 }} 
               animate={{ opacity: 1, x: 0 }}
@@ -234,7 +379,7 @@ const CropDoctor = () => {
                 </motion.div>
               )}
 
-              <div className="space-y-6 flex-1">
+              <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 {/* Organic Cure */}
                 <motion.div 
                   initial={{ x: 20, opacity: 0 }}
@@ -269,7 +414,7 @@ const CropDoctor = () => {
               <motion.button 
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
                 onClick={clearAll} 
-                className="mt-8 text-slate-400 hover:text-emerald-600 font-medium flex items-center justify-center gap-2 transition-colors mx-auto hover:underline underline-offset-4"
+                className="mt-6 text-slate-400 hover:text-emerald-600 font-medium flex items-center justify-center gap-2 transition-colors mx-auto hover:underline underline-offset-4"
               >
                 <Camera size={18} /> Scan Another Plant
               </motion.button>

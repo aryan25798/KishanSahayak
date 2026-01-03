@@ -1,4 +1,3 @@
-// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
@@ -14,16 +13,28 @@ import MarketPrices from "./components/MarketPrices";
 import CommunityForum from "./components/CommunityForum";
 import FarmerMap from "./components/FarmerMap"; 
 import EquipmentMarketplace from "./components/EquipmentMarketplace"; 
-// ✅ NEW IMPORT
 import CropDoctor from "./components/CropDoctor"; 
+// ✅ NEW IMPORT
+import MyFarm from "./components/MyFarm";
 
 import { motion } from "framer-motion";
 import "./i18n"; 
-import { CloudRain, ShieldCheck, ScrollText, ArrowRight, TrendingUp, Users, Leaf, MapPinned, Tractor, Stethoscope } from "lucide-react";
+import { 
+  CloudRain, 
+  ShieldCheck, 
+  ScrollText, 
+  ArrowRight, 
+  TrendingUp, 
+  Users, 
+  Leaf, 
+  MapPinned, 
+  Tractor, 
+  Stethoscope,
+  Sprout // ✅ Added Sprout icon for My Farm
+} from "lucide-react";
 
 // ANIMATED HERO SECTION & LANDING PAGE
 const Home = () => (
-  // Updated padding to prevent navbar overlap
   <div className="pt-20 md:pt-24 min-h-screen bg-slate-50 font-sans selection:bg-emerald-200">
     
     {/* 1. HERO BANNER */}
@@ -127,7 +138,24 @@ const Home = () => (
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         
-        {/* ✅ NEW: CROP DOCTOR CARD */}
+        {/* ✅ ADDED: MY FARM CARD */}
+        <Link to="/my-farm" className="group relative bg-white border-2 border-green-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-green-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-green-600"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-green-200">
+              <Sprout size={32} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-green-700 transition-colors">My Farm Profile</h3>
+            <p className="text-slate-600 font-medium leading-relaxed mb-8">
+              Update your farm details, soil type, and location to get personalized AI advice and schemes.
+            </p>
+            <div className="w-full py-3 rounded-xl bg-green-50 text-green-700 font-bold flex items-center justify-center gap-2 group-hover:bg-green-600 group-hover:text-white transition-all">
+              Manage Farm <ArrowRight size={18} />
+            </div>
+          </div>
+        </Link>
+
+        {/* CROP DOCTOR CARD */}
         <Link to="/doctor" className="group relative bg-white border-2 border-red-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-red-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 to-red-600"></div>
           <div className="relative z-10">
@@ -288,6 +316,17 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            
+            {/* ✅ ADDED ROUTE FOR MY FARM */}
+            <Route 
+              path="/my-farm" 
+              element={
+                <ProtectedRoute>
+                  <MyFarm />
+                </ProtectedRoute>
+              } 
+            />
+
             <Route 
               path="/verify" 
               element={
@@ -347,7 +386,6 @@ function App() {
               } 
             />
             
-            {/* ✅ NEW: CROP DOCTOR ROUTE */}
             <Route 
               path="/doctor" 
               element={
