@@ -16,6 +16,9 @@ import EquipmentMarketplace from "./components/EquipmentMarketplace";
 import CropDoctor from "./components/CropDoctor"; 
 import MyFarm from "./components/MyFarm";
 
+// ✅ FIXED: Import Toaster to make notifications visible
+import { Toaster } from "react-hot-toast";
+
 import { motion } from "framer-motion";
 import "./i18n"; 
 import { 
@@ -425,6 +428,9 @@ function App() {
             
           </Routes>
           <FloatingChatbot /> 
+          
+          {/* ✅ FIXED: Toast Notifications will now appear */}
+          <Toaster position="top-right" />
         </div>
       </Router>
     </AuthProvider>
