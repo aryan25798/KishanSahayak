@@ -4,7 +4,8 @@ import { Navigate } from "react-router-dom";
 import { Loader } from "lucide-react";
 
 const ProtectedRoute = ({ children, allowedRole }) => {
-  const { user, loading } = useAuth();
+  // Destructure userData to access the Firestore role
+  const { user, userData, loading } = useAuth();
 
   // 1. Wait for Auth Check to finish (Prevents "Flashing")
   if (loading) {
@@ -20,10 +21,16 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // 3. (Optional) If role doesn't match -> Go Home
-  // Example: If an Admin tries to access a Farmer-only page
-  if (allowedRole && user.role !== allowedRole && user.email !== "admin@system.com") {
-     return <Navigate to="/" replace />;
+  // 3. Robust Role Check
+  // Ensures user has the correct role from Firestore (userData) 
+  // OR is the system admin email (Super Admin Override)
+  if (allowedRole) {
+    const userRole = userData?.role; // Get role from Firestore document
+    
+    if (userRole !== allowedRole && user.email !== "admin@system.com") {
+      // Redirect unauthorized users to Home
+      return <Navigate to="/" replace />;
+    }
   }
 
   // 4. If all good, show the page

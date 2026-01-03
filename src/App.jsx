@@ -3,24 +3,15 @@ import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import FloatingChatbot from "./components/FloatingChatbot";
 import Login from "./components/Login";
-import Weather from "./components/Weather";
-import AdminDashboard from "./components/AdminDashboard"; 
-import Verify from "./components/Verify"; 
-import Schemes from "./components/Schemes"; 
-import ContactSupport from "./components/ContactSupport"; 
-import ProtectedRoute from "./components/ProtectedRoute"; 
-import MarketPrices from "./components/MarketPrices";
-import CommunityForum from "./components/CommunityForum";
-import FarmerMap from "./components/FarmerMap"; 
-import EquipmentMarketplace from "./components/EquipmentMarketplace"; 
-import CropDoctor from "./components/CropDoctor"; 
-import MyFarm from "./components/MyFarm";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // ✅ FIXED: Import Toaster to make notifications visible
 import { Toaster } from "react-hot-toast";
-
 import { motion } from "framer-motion";
-import "./i18n"; 
+import "./i18n";
+
+// 1. Import lazy and Suspense for optimization
+import { lazy, Suspense } from 'react';
 import { 
   CloudRain, 
   ShieldCheck, 
@@ -33,8 +24,32 @@ import {
   Tractor, 
   Stethoscope,
   Sprout,
-  Headset // ✅ Added Headset icon for Support
+  Headset, // ✅ Added Headset icon for Support
+  Loader // Added Loader for Suspense fallback
 } from "lucide-react";
+
+// 2. Lazy Load Heavy Components
+const Weather = lazy(() => import("./components/Weather"));
+const AdminDashboard = lazy(() => import("./components/AdminDashboard")); 
+const Verify = lazy(() => import("./components/Verify")); 
+const Schemes = lazy(() => import("./components/Schemes")); 
+const ContactSupport = lazy(() => import("./components/ContactSupport")); 
+const MarketPrices = lazy(() => import("./components/MarketPrices"));
+const CommunityForum = lazy(() => import("./components/CommunityForum"));
+const FarmerMap = lazy(() => import("./components/FarmerMap")); 
+const EquipmentMarketplace = lazy(() => import("./components/EquipmentMarketplace")); 
+const CropDoctor = lazy(() => import("./components/CropDoctor")); 
+const MyFarm = lazy(() => import("./components/MyFarm"));
+
+// Simple Loading Spinner Component for Suspense fallback
+const PageLoader = () => (
+  <div className="flex h-[80vh] w-full items-center justify-center bg-slate-50">
+    <div className="flex flex-col items-center gap-2">
+      <Loader className="h-10 w-10 animate-spin text-emerald-500" />
+      <span className="font-medium text-emerald-700">Loading...</span>
+    </div>
+  </div>
+);
 
 // ANIMATED HERO SECTION & LANDING PAGE
 const Home = () => (
@@ -322,111 +337,113 @@ function App() {
       <Router>
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
           <Navbar />
-          <Routes>
-            {/* PUBLIC ROUTES */}
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* PUBLIC ROUTES */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
 
-            {/* 🔒 PROTECTED ROUTES */}
-            <Route 
-              path="/weather" 
-              element={
-                <ProtectedRoute>
-                  <Weather />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* MY FARM ROUTE */}
-            <Route 
-              path="/my-farm" 
-              element={
-                <ProtectedRoute>
-                  <MyFarm />
-                </ProtectedRoute>
-              } 
-            />
+              {/* 🔒 PROTECTED ROUTES (Lazy Loaded) */}
+              <Route 
+                path="/weather" 
+                element={
+                  <ProtectedRoute>
+                    <Weather />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* MY FARM ROUTE */}
+              <Route 
+                path="/my-farm" 
+                element={
+                  <ProtectedRoute>
+                    <MyFarm />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/verify" 
-              element={
-                <ProtectedRoute>
-                  <Verify />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/schemes" 
-              element={
-                <ProtectedRoute>
-                  <Schemes />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/support" 
-              element={
-                <ProtectedRoute>
-                  <ContactSupport />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/market" 
-              element={
-                <ProtectedRoute>
-                  <MarketPrices />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/forum" 
-              element={
-                <ProtectedRoute>
-                  <CommunityForum />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/map" 
-              element={
-                <ProtectedRoute>
-                  <FarmerMap />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/doctor" 
-              element={
-                <ProtectedRoute>
-                  <CropDoctor />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/equipment" 
-              element={
-                <ProtectedRoute>
-                  <div className="pt-24"> 
-                    <EquipmentMarketplace />
-                  </div>
-                </ProtectedRoute>
-              } 
-            />
-            
-          </Routes>
+              <Route 
+                path="/verify" 
+                element={
+                  <ProtectedRoute>
+                    <Verify />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/schemes" 
+                element={
+                  <ProtectedRoute>
+                    <Schemes />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/support" 
+                element={
+                  <ProtectedRoute>
+                    <ContactSupport />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/market" 
+                element={
+                  <ProtectedRoute>
+                    <MarketPrices />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/forum" 
+                element={
+                  <ProtectedRoute>
+                    <CommunityForum />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/map" 
+                element={
+                  <ProtectedRoute>
+                    <FarmerMap />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/doctor" 
+                element={
+                  <ProtectedRoute>
+                    <CropDoctor />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/equipment" 
+                element={
+                  <ProtectedRoute>
+                    <div className="pt-24"> 
+                      <EquipmentMarketplace />
+                    </div>
+                  </ProtectedRoute>
+                } 
+              />
+              
+            </Routes>
+          </Suspense>
           <FloatingChatbot /> 
           
           {/* ✅ FIXED: Toast Notifications will now appear */}

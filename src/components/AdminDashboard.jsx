@@ -1,7 +1,10 @@
 // src/components/AdminDashboard.jsx
 import { useState, useEffect } from "react";
 import { db, auth, storage } from "../firebase";
-import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where, updateDoc, orderBy } from "firebase/firestore";
+import { 
+  collection, addDoc, getDocs, deleteDoc, doc, setDoc, 
+  query, where, updateDoc, orderBy, limit, startAfter 
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +32,12 @@ const AdminDashboard = () => {
   const [forumPosts, setForumPosts] = useState([]);
   const [marketPrices, setMarketPrices] = useState([]);
   const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // Pagination States for Products
+  const [lastProductDoc, setLastProductDoc] = useState(null);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const PRODUCTS_PER_PAGE = 10;
 
   // Chat State
   const [activeChat, setActiveChat] = useState(null);
@@ -75,7 +83,7 @@ const AdminDashboard = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // --- Effects ---
+  // --- Initial Admin Check ---
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -88,41 +96,113 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  const fetchData = async () => {
-    if (!user || user.email !== "admin@system.com") return;
+  // --- Optimized Data Fetching Functions ---
 
+  const fetchProducts = async (isNextPage = false) => {
     setLoading(true);
     try {
-      const [pSnap, sSnap, fSnap, cSnap, forumSnap, marketSnap, appSnap] = await Promise.all([
-        getDocs(collection(db, "products")),
-        getDocs(collection(db, "schemes")),
-        getDocs(query(collection(db, "users"), where("role", "==", "farmer"))),
-        getDocs(collection(db, "complaints")),
-        getDocs(collection(db, "forum_posts")),
-        getDocs(collection(db, "market_prices")),
-        getDocs(query(collection(db, "applications"), orderBy("appliedAt", "desc")))
-      ]);
+      const productsRef = collection(db, "products");
+      let q;
 
-      setProducts(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setSchemes(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setFarmers(fSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setForumPosts(forumSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setApplications(appSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      if (isNextPage && lastProductDoc) {
+        q = query(productsRef, limit(PRODUCTS_PER_PAGE), startAfter(lastProductDoc));
+      } else {
+        q = query(productsRef, limit(PRODUCTS_PER_PAGE));
+      }
 
+      const snapshot = await getDocs(q);
+      const newProducts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      setLastProductDoc(snapshot.docs[snapshot.docs.length - 1]);
+      
+      if (snapshot.docs.length < PRODUCTS_PER_PAGE) {
+        setHasMoreProducts(false);
+      }
+
+      if (isNextPage) {
+        setProducts(prev => [...prev, ...newProducts]);
+      } else {
+        setProducts(newProducts);
+      }
     } catch (err) {
       console.error(err);
-      showToast("Failed to fetch dashboard data", "error");
+      showToast("Failed to fetch products", "error");
     }
     setLoading(false);
   };
 
+  const fetchSchemes = async () => {
+    if (schemes.length > 0) return; // Basic cache
+    setLoading(true);
+    try {
+      const sSnap = await getDocs(collection(db, "schemes"));
+      setSchemes(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchFarmers = async () => {
+    if (farmers.length > 0) return;
+    setLoading(true);
+    try {
+      const fSnap = await getDocs(query(collection(db, "users"), where("role", "==", "farmer")));
+      setFarmers(fSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchComplaints = async () => {
+    if (complaints.length > 0) return;
+    setLoading(true);
+    try {
+      const cSnap = await getDocs(collection(db, "complaints"));
+      setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchForum = async () => {
+    if (forumPosts.length > 0) return;
+    setLoading(true);
+    try {
+      const forumSnap = await getDocs(collection(db, "forum_posts"));
+      setForumPosts(forumSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchMarket = async () => {
+    if (marketPrices.length > 0) return;
+    setLoading(true);
+    try {
+      const marketSnap = await getDocs(collection(db, "market_prices"));
+      setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchApplications = async () => {
+    if (applications.length > 0) return;
+    setLoading(true);
+    try {
+      const appSnap = await getDocs(query(collection(db, "applications"), orderBy("appliedAt", "desc")));
+      setApplications(appSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  // --- Effect: Fetch Data Based on Active Tab ---
   useEffect(() => { 
     if (user?.email === "admin@system.com") {
-        fetchData(); 
+        if (activeTab === "products" && products.length === 0) fetchProducts();
+        if (activeTab === "schemes") fetchSchemes();
+        if (activeTab === "farmers") fetchFarmers();
+        if (activeTab === "complaints") fetchComplaints();
+        if (activeTab === "forum") fetchForum();
+        if (activeTab === "market") fetchMarket();
+        if (activeTab === "applications") fetchApplications();
     }
-  }, [user]);
+  }, [user, activeTab]);
 
   // --- Handlers ---
 
@@ -170,7 +250,9 @@ const AdminDashboard = () => {
        });
        showToast("Product Added Successfully!");
        setBatchCode(""); setProductName(""); setProductImage(null); setImagePreview(null);
-       fetchData(); 
+       // Refresh products list
+       setProducts([]); setLastProductDoc(null); setHasMoreProducts(true);
+       fetchProducts(); 
     } catch (e) { showToast(e.message, "error"); }
   };
 
@@ -190,7 +272,8 @@ const AdminDashboard = () => {
       await addDoc(collection(db, "schemes"), {
         title: item.title, description: item.snippet || "No description", category: "Imported Subsidy", link: item.link, timestamp: new Date()
       });
-      showToast("Scheme Imported!"); fetchData();
+      showToast("Scheme Imported!"); 
+      setSchemes([]); fetchSchemes();
     } catch (e) { showToast("Error importing: " + e.message, "error"); }
   };
 
@@ -215,7 +298,7 @@ const AdminDashboard = () => {
       });
       showToast("Scheme Posted with Image!"); 
       setSchemeTitle(""); setSchemeDesc(""); 
-      fetchData();
+      setSchemes([]); fetchSchemes();
     } catch (e) { showToast(e.message, "error"); }
   };
 
@@ -243,7 +326,7 @@ const AdminDashboard = () => {
         showToast("Market Price Added!");
       }
       setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); 
-      fetchData();
+      setMarketPrices([]); fetchMarket();
     } catch (e) { showToast(e.message, "error"); }
   };
 
@@ -261,8 +344,18 @@ const AdminDashboard = () => {
     if(window.confirm("Delete this item? This cannot be undone.")) { 
       try {
         await deleteDoc(doc(db, col, id)); 
-        fetchData();
         showToast("Deleted successfully.");
+        
+        // Refresh appropriate list
+        if (col === "products") { 
+            setProducts(prev => prev.filter(p => p.id !== id)); 
+            // If list gets too small, maybe fetch more? simplified for now
+        }
+        if (col === "schemes") { setSchemes(prev => prev.filter(s => s.id !== id)); }
+        if (col === "users") { setFarmers(prev => prev.filter(f => f.id !== id)); }
+        if (col === "complaints") { setComplaints(prev => prev.filter(c => c.id !== id)); }
+        if (col === "market_prices") { setMarketPrices(prev => prev.filter(m => m.id !== id)); }
+        if (col === "forum_posts") { setForumPosts(prev => prev.filter(p => p.id !== id)); }
       } catch(e) {
         showToast("Error deleting: " + e.message, "error");
       }
@@ -292,7 +385,7 @@ const AdminDashboard = () => {
       showToast(`Complaint Resolved! Email sent to ${farmerEmail}`);
       setResolvingId(null);
       setReplyText("");
-      fetchData();
+      setComplaints([]); fetchComplaints();
     } catch (e) {
       console.error(e);
       showToast("Error resolving: " + e.message, "error");
@@ -344,6 +437,18 @@ const AdminDashboard = () => {
               </tbody>
            </table>
          </div>
+         {/* Load More Button */}
+         {hasMoreProducts && (
+            <div className="p-4 border-t flex justify-center">
+               <button 
+                  onClick={() => fetchProducts(true)} 
+                  disabled={loading}
+                  className="text-green-600 font-bold hover:text-green-700 disabled:opacity-50 text-sm flex items-center gap-2"
+               >
+                  {loading ? <Loader className="animate-spin" size={16}/> : "Load More Products"}
+               </button>
+            </div>
+         )}
       </div>
     </div>
   );
@@ -514,8 +619,6 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
-
-  if (loading) return <div className="h-screen flex flex-col items-center justify-center bg-gray-50"><Loader className="animate-spin text-green-600 mb-4" size={32} /><p className="text-gray-500 font-medium">Loading Dashboard...</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans pt-16">
