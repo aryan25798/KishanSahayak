@@ -52,18 +52,30 @@ export default defineConfig({
     // Advanced optimization for production builds
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split React core to keep the main bundle small
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
-          // Split Firebase because it is very large
-          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/analytics'],
-          
-          // Split UI animations and charts
-          'ui-libs': ['framer-motion', 'recharts', 'lucide-react', 'react-hot-toast'],
-          
-          // Split Mapping libraries (heavy)
-          'maps-vendor': ['leaflet', 'react-leaflet', '@react-google-maps/api'],
+        // ✅ FIXED: Converted object to function to fix "manualChunks is not a function" error
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            
+            // 1. UI Libraries (Check first to catch react-hot-toast)
+            if (id.includes('framer-motion') || id.includes('recharts') || id.includes('lucide-react') || id.includes('react-hot-toast')) {
+              return 'ui-libs';
+            }
+
+            // 2. Mapping libraries (Check before react to catch react-leaflet)
+            if (id.includes('leaflet') || id.includes('react-leaflet') || id.includes('@react-google-maps/api')) {
+              return 'maps-vendor';
+            }
+
+            // 3. React core
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'react-vendor';
+            }
+            
+            // 4. Firebase
+            if (id.includes('firebase')) {
+              return 'firebase-vendor';
+            }
+          }
         }
       }
     },
