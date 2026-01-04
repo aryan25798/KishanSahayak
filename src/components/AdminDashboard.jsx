@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { db, auth, storage } from "../firebase";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, setDoc, 
-  query, where, updateDoc, orderBy, limit, startAfter 
-} from "firebase/firestore";
+  query, where, updateDoc, orderBy, limit, startAfter, writeBatch 
+} from "firebase/firestore"; // ✅ Added writeBatch for fast deletion
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -260,10 +260,17 @@ const AdminDashboard = () => {
                         timestamp: new Date()
                     });
                 } else if (type === "market") {
+                    // Capture all fields from Demo Data
                     await addDoc(collection(db, "market_prices"), {
                         crop: row.crop || "Crop",
+                        variety: row.variety || "Standard",       
                         market: row.market || "Mandi",
+                        district: row.district || "",             
+                        state: row.state || "",                   
                         price: row.price ? `₹${row.price}/qt` : "₹0/qt",
+                        min_price: row.min_price ? `₹${row.min_price}/qt` : "", 
+                        max_price: row.max_price ? `₹${row.max_price}/qt` : "", 
+                        date: row.date || new Date().toLocaleDateString(),      
                         change: row.change || "stable",
                         imageUrl: row.imageUrl || null, 
                         timestamp: new Date()
@@ -357,8 +364,12 @@ const AdminDashboard = () => {
 
     setIsDeleting(true);
     try {
-        const deletePromises = Array.from(selectedItems).map(id => deleteDoc(doc(db, collectionName, id)));
-        await Promise.all(deletePromises);
+        const batch = writeBatch(db); // Use batch for deleting selected items too
+        selectedItems.forEach(id => {
+            const docRef = doc(db, collectionName, id);
+            batch.delete(docRef);
+        });
+        await batch.commit();
         
         showToast(`Successfully deleted ${selectedItems.size} items.`);
         
@@ -380,6 +391,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // ✅ OPTIMIZED: WIPE ALL LOGIC USING BATCHED WRITES (FASTER)
   const handleWipeCollection = async (collectionName) => {
     if(!window.confirm(`⚠️ EXTREME DANGER: This will delete ALL data in "${collectionName}".\n\nThis includes items NOT visible on the current page.\nAre you absolutely sure?`)) return;
     
@@ -391,13 +403,18 @@ const AdminDashboard = () => {
         let deletedCount = 0;
         
         while (true) {
-            const q = query(collection(db, collectionName), limit(50)); 
+            // Fetch batches of 500 (Firestore limit for batch writes)
+            const q = query(collection(db, collectionName), limit(500)); 
             const snapshot = await getDocs(q);
             
             if (snapshot.empty) break;
 
-            const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, collectionName, d.id)));
-            await Promise.all(deletePromises);
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit(); // Single request for 500 deletes
             
             deletedCount += snapshot.size;
         }
@@ -1330,7 +1347,7 @@ const AdminDashboard = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {marketPrices.map(m => (
-                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
+                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
                       
                       <button onClick={() => toggleSelection(m.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10">
