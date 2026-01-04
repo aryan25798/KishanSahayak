@@ -215,7 +215,7 @@ const AdminDashboard = () => {
     }
   }, [user, activeTab]);
 
-  // --- 🆕 EXCEL / BULK OPERATIONS ---
+  // --- EXCEL / BULK OPERATIONS ---
 
   const handleBulkUpload = async (e, type) => {
     const file = e.target.files[0];
@@ -329,7 +329,7 @@ const AdminDashboard = () => {
     showToast("Report Downloaded!");
   };
 
-  // --- 🆕 BULK DELETE & WIPE LOGIC ---
+  // --- BULK DELETE & WIPE LOGIC ---
 
   const toggleSelection = (id) => {
     const newSelection = new Set(selectedItems);
@@ -1114,7 +1114,7 @@ const AdminDashboard = () => {
       {/* Mobile Toggle Button (High Z-Index Fix) */}
       <button 
         onClick={() => setIsSidebarOpen(true)}
-        className="md:hidden fixed bottom-8 right-6 z-[100] bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-95"
+        className="md:hidden fixed bottom-6 left-6 z-[100] bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-95"
         title="Open Admin Menu"
       >
         <Menu size={24} />
@@ -1330,7 +1330,7 @@ const AdminDashboard = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {marketPrices.map(m => (
-                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
+                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
                       
                       <button onClick={() => toggleSelection(m.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10">
