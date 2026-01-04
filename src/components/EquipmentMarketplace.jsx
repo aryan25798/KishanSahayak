@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { db, auth, storage } from "../firebase";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
-  query, where, serverTimestamp, arrayUnion, arrayRemove 
+  query, where, serverTimestamp, arrayUnion, arrayRemove,
+  getDoc // ✅ Added missing import here
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
@@ -207,15 +208,12 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
       // 2. Block Dates in Equipment Calendar
       if (req.startDate && req.endDate) {
         const bookedDates = getDatesInRange(req.startDate, req.endDate);
-        // Add all booked dates to unavailableDates
         const itemRef = doc(db, "equipment", req.equipmentId);
-        // Note: Firestore arrayUnion takes varargs, we need to iterate or do logic. 
-        // Simpler: fetch doc, merge arrays, update.
-        const itemSnap = await getDoc(itemRef); // We can just use updateDoc with spread if needed but let's be safe
-        const currentDates = itemSnap.data().unavailableDates || [];
-        const newDates = [...new Set([...currentDates, ...bookedDates])];
         
-        await updateDoc(itemRef, { unavailableDates: newDates });
+        // ✅ UPDATED LOGIC: Use arrayUnion with spread operator to update reliably
+        await updateDoc(itemRef, { 
+          unavailableDates: arrayUnion(...bookedDates) 
+        });
       }
 
       toast.success("Request Accepted!");
@@ -501,8 +499,8 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                {(!managingItem.unavailableDates || managingItem.unavailableDates.length === 0) && <p className="text-sm text-gray-300">No dates blocked.</p>}
                {managingItem.unavailableDates?.map((date, idx) => (
                  <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg text-sm">
-                    <span>{date}</span>
-                    <button onClick={() => handleUnblockDate(date)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
+                   <span>{date}</span>
+                   <button onClick={() => handleUnblockDate(date)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button>
                  </div>
                ))}
             </div>
