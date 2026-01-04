@@ -6,6 +6,11 @@ import viteCompression from 'vite-plugin-compression'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig({
+  // ✅ FIX: Shim process.env for libraries that expect it (fixes "process is not defined")
+  define: {
+    'process.env': {} 
+  },
+
   plugins: [
     react(),
     // ✅ NEW: Enables HTTPS for dev server (required for microphone/voice features)

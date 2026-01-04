@@ -1,14 +1,14 @@
 // src/components/Schemes.jsx
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs, addDoc, serverTimestamp, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, serverTimestamp, query, where, orderBy } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext"; 
-import { Search, ScrollText, ArrowRight, Loader, CheckCircle, XCircle, Clock, MapPin } from "lucide-react"; // Added Icons
+import { Search, ScrollText, ArrowRight, Loader, CheckCircle, XCircle, Clock, MapPin, CalendarDays } from "lucide-react"; 
 
 const Schemes = () => {
   const { user } = useAuth(); 
   const [schemes, setSchemes] = useState([]);
-  const [applicationStatus, setApplicationStatus] = useState({}); // ✅ Stores { schemeId: "Pending" | "Accepted" | "Rejected" }
+  const [applicationStatus, setApplicationStatus] = useState({}); 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [applyingId, setApplyingId] = useState(null);
@@ -16,9 +16,24 @@ const Schemes = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Fetch All Schemes
-        const schemesSnap = await getDocs(collection(db, "schemes"));
-        const schemesData = schemesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // 1. Fetch All Schemes (Ordered by newest first)
+        const schemesRef = collection(db, "schemes");
+        // Try to order by timestamp if index exists, otherwise default fetch
+        // Note: Ideally create a composite index in Firestore for 'timestamp desc'
+        const schemesSnap = await getDocs(schemesRef); 
+        
+        const schemesData = schemesSnap.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        }));
+
+        // Manually sort by timestamp client-side to ensure "Newest First" without index errors
+        schemesData.sort((a, b) => {
+            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp || 0);
+            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp || 0);
+            return dateB - dateA;
+        });
+
         setSchemes(schemesData);
 
         // 2. Fetch User's Applications (if logged in)
@@ -27,11 +42,10 @@ const Schemes = () => {
           const q = query(appsRef, where("uid", "==", user.uid));
           const appsSnap = await getDocs(q);
           
-          // Create a map of Scheme ID -> Status
           const statusMap = {};
           appsSnap.docs.forEach(doc => {
             const data = doc.data();
-            statusMap[data.schemeId] = data.status; // e.g., "Pending", "Accepted", "Rejected"
+            statusMap[data.schemeId] = data.status; 
           });
           setApplicationStatus(statusMap);
         }
@@ -42,6 +56,40 @@ const Schemes = () => {
     };
     fetchData();
   }, [user]);
+
+  // --- 🕒 Helper: Calculate "Time Ago" ---
+  const getTimeAgo = (timestamp) => {
+    if (!timestamp) return "Recently";
+    
+    let date;
+    // Handle Firestore Timestamp or standard Date string
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else {
+      date = new Date(timestamp);
+    }
+
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 0) return "Today";
+    if (diffInDays === 1) return "Yesterday";
+    if (diffInDays < 30) return `${diffInDays} days ago`;
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    if (diffInMonths < 12) return `${diffInMonths} months ago`;
+
+    return `${Math.floor(diffInMonths / 12)} years ago`;
+  };
 
   const handleApply = async (scheme) => {
     if (!user) {
@@ -68,13 +116,11 @@ const Schemes = () => {
           schemeId: scheme.id,
           schemeTitle: scheme.title,
           location: { lat: latitude, lng: longitude },
-          status: "Pending", // Default status
+          status: "Pending",
           appliedAt: serverTimestamp()
         });
 
         alert(`Successfully applied for ${scheme.title}!`);
-        
-        // Update local state instantly to show "Pending"
         setApplicationStatus((prev) => ({ ...prev, [scheme.id]: "Pending" }));
 
       } catch (error) {
@@ -94,7 +140,6 @@ const Schemes = () => {
     s.category.toLowerCase().includes(filter.toLowerCase())
   );
 
-  // Helper to get Button Styles based on Status
   const getStatusButton = (status, schemeId) => {
     if (applyingId === schemeId) {
       return (
@@ -124,7 +169,6 @@ const Schemes = () => {
           </button>
         );
       default:
-        // Not Applied Yet
         return (
           <button 
             onClick={() => handleApply(schemes.find(s => s.id === schemeId))}
@@ -165,7 +209,7 @@ const Schemes = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredSchemes.map((scheme, index) => {
-            const status = applicationStatus[scheme.id]; // Get status for this scheme
+            const status = applicationStatus[scheme.id]; 
 
             return (
               <div 
@@ -187,13 +231,18 @@ const Schemes = () => {
                 </div>
 
                 <div className="p-8 flex flex-col flex-1">
+                  {/* 🕒 TIME AGO DISPLAY */}
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">
+                    <CalendarDays size={14} className="text-emerald-500"/>
+                    Posted {getTimeAgo(scheme.timestamp)}
+                  </div>
+
                   <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-emerald-700 transition-colors">{scheme.title}</h3>
                   
                   <p className="text-gray-500 text-sm mb-8 flex-1 leading-relaxed line-clamp-3">
                     {scheme.description}
                   </p>
                   
-                  {/* ✅ Render the correct button based on status */}
                   {getStatusButton(status, scheme.id)}
                   
                 </div>

@@ -3,19 +3,29 @@ import { useState, useEffect } from "react";
 import { 
   Search, CloudRain, Wind, Droplets, MapPin, Navigation, 
   Loader2, Sun, Cloud, Thermometer, Umbrella, Calendar, 
-  Sunrise, Sunset, Sprout, Eye, BarChart3
+  Sunrise, Sunset, Sprout, Eye, BarChart3, ListChecks, BrainCircuit
 } from "lucide-react";
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar 
 } from 'recharts';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { useAuth } from "../context/AuthContext";
+
+// Initialize Gemini (Ensure you have VITE_GEMINI_API_KEY in your .env file)
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 const Weather = () => {
+  const { userData } = useAuth(); // Access user's farm details
   const [city, setCity] = useState("New Delhi");
   const [weather, setWeather] = useState(null);
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [chartType, setChartType] = useState("temp"); // 'temp' or 'rain'
+  const [chartType, setChartType] = useState("temp"); 
+
+  // AI State
+  const [aiAdvisory, setAiAdvisory] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Helper: Map WMO weather codes to Icons & Descriptions
   const getWeatherInfo = (code) => {
@@ -28,7 +38,7 @@ const Weather = () => {
     return { desc: "Overcast", icon: <Cloud size={64} className="text-gray-400 drop-shadow-lg"/> };
   };
 
-  // Helper: Generate Farming Advice based on data
+  // Helper: Generate Static Farming Advice (Instant Fallback)
   const getFarmingTip = (temp, wind, rain, soil) => {
     if (rain > 5) return "Heavy rain expected. Ensure drainage channels are clear.";
     if (soil < 0.2 && rain < 1) return "Soil moisture is low. Irrigation recommended.";
@@ -38,10 +48,59 @@ const Weather = () => {
     return "Conditions are optimal for general field activities.";
   };
 
+  // AI: Generate Personalized Advisory
+  const generateAIAdvisory = async (currentWeather, userFarmData) => {
+    setAiLoading(true);
+    try {
+      // Extract farm details (defaulting if not set)
+      const farm = userFarmData?.farms?.[0] || {}; 
+      const crops = farm.primaryCrops || "General Crops";
+      const soil = farm.soilType || "Loamy";
+      const irrigation = farm.irrigationType || "Standard";
+
+      const prompt = `
+        Act as an expert agronomist.
+        Current Weather in ${currentWeather.name}: 
+        - Temp: ${currentWeather.temp}°C
+        - Rain: ${currentWeather.rain}mm
+        - Humidity: ${currentWeather.humidity}%
+        - Wind: ${currentWeather.wind}km/h
+        
+        Farmer Profile:
+        - Crops: ${crops}
+        - Soil: ${soil} Soil
+        - Irrigation: ${irrigation}
+
+        Generate a strictly formatted JSON array of 3 short, actionable strings (max 10 words each) for daily tasks.
+        Example: ["Apply nitrogen fertilizer due to moisture.", "Check for fungal growth.", "Delay irrigation."].
+        Do not include markdown or explanations, just the JSON array.
+      `;
+
+      // STRICTLY using gemini-2.5-flash as requested
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      // Clean and parse JSON
+      const jsonStr = text.replace(/```json|```/g, "").trim();
+      const tasks = JSON.parse(jsonStr);
+      setAiAdvisory(tasks);
+    } catch (err) {
+      console.error("AI Advisory Error:", err);
+      // Fallback is already handled by static tip, so we just don't show AI section
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   // 1. Fetch Weather from Open-Meteo
   const fetchWeather = async (lat, lon, cityName) => {
     setLoading(true);
     setError(null);
+    setAiAdvisory(null); // Reset AI advice on new fetch
+
     try {
       const response = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation,surface_pressure,soil_moisture_0_to_1cm&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,uv_index_max,sunrise,sunset&timezone=auto`
@@ -67,14 +126,14 @@ const Weather = () => {
         sunset: daily.sunset[index].split('T')[1]
       })).slice(0, 7);
 
-      setWeather({
+      const weatherObj = {
         name: cityName,
         temp: Math.round(current.temperature_2m),
         wind: current.wind_speed_10m,
         humidity: current.relative_humidity_2m,
         rain: current.precipitation,
         pressure: current.surface_pressure,
-        soil: current.soil_moisture_0_to_1cm, // 0-1 scale
+        soil: current.soil_moisture_0_to_1cm,
         description: info.desc,
         icon: info.icon,
         tip: tip,
@@ -82,9 +141,13 @@ const Weather = () => {
         todayLow: daily.temperature_2m_min[0],
         sunrise: daily.sunrise[0].split('T')[1],
         sunset: daily.sunset[0].split('T')[1]
-      });
+      };
 
+      setWeather(weatherObj);
       setForecast(dailyData);
+
+      // Trigger AI Advisory Analysis
+      generateAIAdvisory(weatherObj, userData);
 
     } catch (err) {
       console.error(err);
@@ -273,13 +336,44 @@ const Weather = () => {
                 </div>
               </div>
 
-              {/* Expert Tip */}
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 p-4 rounded-xl backdrop-blur-md border border-green-400/30 shadow-lg mb-6 flex items-start gap-3 transform hover:scale-[1.01] transition-transform">
-                <div className="bg-green-500/20 p-2 rounded-lg shrink-0"><Sprout size={24} className="text-green-300" /></div>
-                <div>
-                  <h4 className="font-bold text-green-300 text-xs uppercase mb-1 flex items-center gap-2">Agronomist Recommendation</h4>
-                  <p className="text-white text-sm sm:text-base leading-snug opacity-95 font-medium">{weather.tip}</p>
-                </div>
+              {/* Expert Tip & AI Advisory */}
+              <div className="grid grid-cols-1 gap-4 mb-6">
+                  {/* Instant Tip */}
+                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 p-4 rounded-xl backdrop-blur-md border border-green-400/30 shadow-lg flex items-start gap-3">
+                    <div className="bg-green-500/20 p-2 rounded-lg shrink-0"><Sprout size={24} className="text-green-300" /></div>
+                    <div>
+                      <h4 className="font-bold text-green-300 text-xs uppercase mb-1 flex items-center gap-2">Quick Tip</h4>
+                      <p className="text-white text-sm sm:text-base leading-snug opacity-95 font-medium">{weather.tip}</p>
+                    </div>
+                  </div>
+
+                  {/* AI Generated Advisory */}
+                  <div className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 p-4 rounded-xl backdrop-blur-md border border-indigo-400/30 shadow-lg relative overflow-hidden min-h-[100px]">
+                    <div className="absolute top-0 right-0 p-2 opacity-10"><BrainCircuit size={80} /></div>
+                    
+                    <h4 className="font-bold text-indigo-300 text-xs uppercase mb-2 flex items-center gap-2 relative z-10">
+                        <SparklesIcon /> AI Daily Planner 
+                        {aiLoading && <Loader2 size={12} className="animate-spin ml-1"/>}
+                    </h4>
+
+                    {aiLoading ? (
+                        <div className="space-y-2 relative z-10 opacity-50">
+                            <div className="h-2 bg-white/20 rounded w-3/4 animate-pulse"></div>
+                            <div className="h-2 bg-white/20 rounded w-1/2 animate-pulse"></div>
+                        </div>
+                    ) : aiAdvisory ? (
+                        <ul className="space-y-2 relative z-10">
+                            {aiAdvisory.map((task, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-white/90">
+                                    <ListChecks size={16} className="shrink-0 mt-0.5 text-indigo-300"/>
+                                    {task}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-xs text-indigo-200">Connect to MyFarm to get personalized AI tasks.</p>
+                    )}
+                  </div>
               </div>
 
               {/* Chart Section */}
@@ -360,5 +454,10 @@ const Weather = () => {
     </div>
   );
 };
+
+// Small helper component for the spark icon
+const SparklesIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-300"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+);
 
 export default Weather;

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth, db } from "../firebase"; // Importing the tools we just set up
+import { auth, db } from "../firebase"; 
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore"; // Updated import
 
 const AuthContext = createContext();
 
@@ -24,40 +24,61 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribeSnapshot = null;
+
     // This listener runs whenever a user logs in or out
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+
+      // Clean up previous Firestore listener if it exists (e.g. switching accounts)
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
 
       if (currentUser) {
         try {
-          // 1. Check if we have cached data to show immediately (handled by useState init)
-          
-          // 2. Fetch fresh data from Firestore to ensure it's up to date
+          // 2. Fetch fresh data from Firestore in REAL-TIME
+          // We use onSnapshot instead of getDoc so updates (like adding a farm) sync instantly
           const docRef = doc(db, "users", currentUser.uid);
-          const docSnap = await getDoc(docRef);
+          
+          unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const freshData = docSnap.data();
+              setUserData(freshData);
+              // Update cache
+              localStorage.setItem('kisan_user_data', JSON.stringify(freshData));
+            } else {
+              // User exists in Auth but not in Database (rare edge case)
+              console.warn("User authenticated but no profile found.");
+              // Keep existing userData or set to null depending on preference, usually safer to clear if doc is missing
+            }
+            // Data is loaded (or updated), stop loading spinner
+            setLoading(false);
+          }, (error) => {
+            console.error("Error listening to user data:", error);
+            setLoading(false);
+          });
 
-          if (docSnap.exists()) {
-            const freshData = docSnap.data();
-            setUserData(freshData);
-            // Update cache
-            localStorage.setItem('kisan_user_data', JSON.stringify(freshData));
-          } else {
-            // User exists in Auth but not in Database (rare edge case)
-            console.warn("User authenticated but no profile found.");
-          }
         } catch (error) {
-          console.error("Error fetching user role:", error);
+          console.error("Error setting up user listener:", error);
+          setLoading(false);
         }
       } else {
         // User logged out
         setUserData(null);
         localStorage.removeItem('kisan_user_data');
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    return unsubscribe;
+    // Cleanup function when the component unmounts
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+    };
   }, []);
 
   return (
