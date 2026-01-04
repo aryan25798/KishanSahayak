@@ -71,7 +71,7 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
         const received = receivedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const sent = sentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // Sort by timestamp (newest first) client-side to avoid composite index issues
+        // Sort by timestamp (newest first)
         received.sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
         sent.sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
 
@@ -125,16 +125,19 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
   // --- Item Management ---
   const handlePostItem = async (e) => {
     e.preventDefault();
-    if (!image) return toast.error("Please upload an image.");
+    // ✅ IMAGE IS NOW OPTIONAL
     setUploading(true);
     try {
-      const imgRef = ref(storage, `equipment/${Date.now()}_${image.name}`);
-      await uploadBytes(imgRef, image);
-      const url = await getDownloadURL(imgRef);
+      let url = null;
+      if (image) {
+          const imgRef = ref(storage, `equipment/${Date.now()}_${image.name}`);
+          await uploadBytes(imgRef, image);
+          url = await getDownloadURL(imgRef);
+      }
 
       await addDoc(collection(db, "equipment"), {
         ...formData,
-        imageUrl: url,
+        imageUrl: url, // Can be null
         ownerEmail: user.email,
         ownerName: user.displayName || "Farmer",
         createdAt: serverTimestamp(),
@@ -332,8 +335,15 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                const rating = getOwnerRating(item.ownerEmail);
                return (
                 <div key={item.id} className="group bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
-                  <div className="h-52 relative overflow-hidden">
-                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <div className="h-52 relative overflow-hidden bg-gray-100">
+                    {/* ✅ FALLBACK IMAGE */}
+                    {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <Tractor size={64} />
+                        </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"/>
                     <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md ${item.type === "Rent" ? "bg-blue-500/80" : "bg-emerald-500/80"}`}>
                       {item.type}
@@ -392,8 +402,9 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
               const hasReviewed = reviews.some(r => r.requestId === req.id);
               return (
                 <div key={req.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row gap-5">
-                  <div className="w-full sm:w-32 h-32 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                    <img src={req.equipmentImage} className="w-full h-full object-cover" />
+                  <div className="w-full sm:w-32 h-32 bg-gray-100 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+                    {/* ✅ FALLBACK IMAGE */}
+                    {req.equipmentImage ? <img src={req.equipmentImage} className="w-full h-full object-cover" /> : <Tractor className="text-gray-300" size={40}/>}
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
@@ -450,7 +461,7 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                 </div>
                 <div className="space-y-1"><label className="text-xs font-bold text-gray-500 uppercase">Description</label><textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-3 border rounded-xl h-24 outline-none focus:border-orange-500" placeholder="Details about condition, specs..."/></div>
                 <label className="block w-full border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-orange-500 bg-gray-50 transition">
-                  {image ? <span className="text-green-600 font-bold">{image.name}</span> : <span className="text-gray-400 flex flex-col items-center gap-2"><ImageIcon/> Upload Photo</span>}
+                  {image ? <span className="text-green-600 font-bold">{image.name}</span> : <span className="text-gray-400 flex flex-col items-center gap-2"><ImageIcon/> Upload Photo (Optional)</span>}
                   <input type="file" className="hidden" onChange={(e) => setImage(e.target.files[0])} />
                 </label>
                 <button disabled={uploading} className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold hover:bg-orange-700 shadow-lg">{uploading ? "Publishing..." : "Publish Listing"}</button>
@@ -464,7 +475,12 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                 {incomingRequests.length === 0 && <p className="text-gray-400 italic">No orders received yet.</p>}
                 {incomingRequests.map(req => (
                   <div key={req.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-4">
-                    <img src={req.equipmentImage} className="w-16 h-16 rounded-xl object-cover bg-gray-100" />
+                    {/* ✅ FALLBACK IMAGE */}
+                    {req.equipmentImage ? (
+                        <img src={req.equipmentImage} className="w-16 h-16 rounded-xl object-cover bg-gray-100" />
+                    ) : (
+                        <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400"><Tractor size={24}/></div>
+                    )}
                     <div className="flex-1">
                       <div className="flex justify-between">
                         <h4 className="font-bold text-slate-800">{req.equipmentName}</h4>
@@ -498,7 +514,12 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                 <div className="space-y-4">
                   {myItems.map(item => (
                     <div key={item.id} className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 group">
-                      <img src={item.imageUrl} className="w-12 h-12 rounded-lg object-cover" />
+                      {/* ✅ FALLBACK IMAGE */}
+                      {item.imageUrl ? (
+                          <img src={item.imageUrl} className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400"><Tractor size={20}/></div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-slate-800 truncate">{item.name}</h4>
                         <p className="text-xs text-orange-600 font-bold">₹{item.price}</p>
@@ -540,20 +561,13 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
           <div className="bg-white rounded-3xl p-6 max-w-md w-full relative">
             <button onClick={() => setManagingItem(null)} className="absolute top-4 right-4 text-gray-400"><XCircle/></button>
             <h3 className="text-xl font-bold mb-4">Availability Calendar</h3>
-            
             <div className="flex gap-2 mb-4">
                <input type="date" className="flex-1 p-2 border rounded-xl" onChange={e => setBlockDate(e.target.value)} value={blockDate} />
                <button onClick={handleManualBlock} className="bg-red-500 text-white px-4 rounded-xl font-bold text-sm">Block</button>
             </div>
-
             <div className="space-y-2 max-h-40 overflow-y-auto">
-               <h4 className="text-xs font-bold text-gray-400 uppercase">Blocked Dates</h4>
-               {(!managingItem.unavailableDates || managingItem.unavailableDates.length === 0) && <p className="text-sm text-gray-300">No dates blocked.</p>}
-               {managingItem.unavailableDates?.map((d, i) => (
-                 <div key={i} className="flex justify-between p-2 bg-gray-50 rounded-lg text-sm">
-                    <span>{d}</span>
-                    <button className="text-red-500 hover:text-red-700" onClick={() => handleManualUnblock(d)}><Trash2 size={14}/></button>
-                 </div>
+               {managingItem.unavailableDates?.map(d => (
+                 <div key={d} className="flex justify-between p-2 bg-gray-50 rounded-lg text-sm"><span>{d}</span><button className="text-red-500" onClick={() => handleManualUnblock(d)}><Trash2 size={14}/></button></div>
                ))}
             </div>
           </div>

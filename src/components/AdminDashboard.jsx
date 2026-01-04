@@ -12,7 +12,7 @@ import {
   Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
   Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
   MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor,
-  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle
+  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, Calendar
 } from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
 import * as XLSX from 'xlsx'; // Import SheetJS for Excel handling
@@ -35,6 +35,7 @@ const AdminDashboard = () => {
   const [marketPrices, setMarketPrices] = useState([]);
   const [applications, setApplications] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]); 
+  const [equipmentRequests, setEquipmentRequests] = useState([]); // 🆕
   const [loading, setLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false); 
 
@@ -78,6 +79,14 @@ const AdminDashboard = () => {
   const [marketImage, setMarketImage] = useState(null); 
   const [marketImagePreview, setMarketImagePreview] = useState(null); 
   const [editMarketId, setEditMarketId] = useState(null);
+
+  // --- EQUIPMENT FORM STATE --- 🆕
+  const [eqName, setEqName] = useState("");
+  const [eqType, setEqType] = useState("Rent");
+  const [eqPrice, setEqPrice] = useState("");
+  const [eqLocation, setEqLocation] = useState("");
+  const [eqImage, setEqImage] = useState(null);
+  const [eqImagePreview, setEqImagePreview] = useState(null);
 
   // Complaint Resolution State
   const [resolvingId, setResolvingId] = useState(null);
@@ -198,6 +207,10 @@ const AdminDashboard = () => {
     try {
       const eqSnap = await getDocs(collection(db, "equipment"));
       setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      
+      // Fetch Requests too
+      const reqSnap = await getDocs(query(collection(db, "equipment_requests"), orderBy("timestamp", "desc")));
+      setEquipmentRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -216,7 +229,6 @@ const AdminDashboard = () => {
   }, [user, activeTab]);
 
   // --- EXCEL / BULK OPERATIONS ---
-
   const handleBulkUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -260,7 +272,6 @@ const AdminDashboard = () => {
                         timestamp: new Date()
                     });
                 } else if (type === "market") {
-                    // Capture all fields from Demo Data
                     await addDoc(collection(db, "market_prices"), {
                         crop: row.crop || "Crop",
                         variety: row.variety || "Standard",       
@@ -337,7 +348,6 @@ const AdminDashboard = () => {
   };
 
   // --- BULK DELETE & WIPE LOGIC ---
-
   const toggleSelection = (id) => {
     const newSelection = new Set(selectedItems);
     if (newSelection.has(id)) {
@@ -391,7 +401,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // ✅ OPTIMIZED: WIPE ALL LOGIC USING BATCHED WRITES (FASTER)
   const handleWipeCollection = async (collectionName) => {
     if(!window.confirm(`⚠️ EXTREME DANGER: This will delete ALL data in "${collectionName}".\n\nThis includes items NOT visible on the current page.\nAre you absolutely sure?`)) return;
     
@@ -403,7 +412,6 @@ const AdminDashboard = () => {
         let deletedCount = 0;
         
         while (true) {
-            // Fetch batches of 500 (Firestore limit for batch writes)
             const q = query(collection(db, collectionName), limit(500)); 
             const snapshot = await getDocs(q);
             
@@ -414,7 +422,7 @@ const AdminDashboard = () => {
                 batch.delete(doc.ref);
             });
 
-            await batch.commit(); // Single request for 500 deletes
+            await batch.commit(); 
             
             deletedCount += snapshot.size;
         }
@@ -453,6 +461,11 @@ const AdminDashboard = () => {
   const handleMarketImageChange = (e) => {
     const file = e.target.files[0];
     if (file) { setMarketImage(file); setMarketImagePreview(URL.createObjectURL(file)); }
+  };
+
+  const handleEqImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) { setEqImage(file); setEqImagePreview(URL.createObjectURL(file)); }
   };
 
   const uploadFile = async (file, path) => {
@@ -604,6 +617,36 @@ const AdminDashboard = () => {
       setResolvingId(null); setReplyText(""); fetchComplaints();
     } catch (e) { showToast("Updated DB but failed to send Email", "error"); } 
     finally { setUploading(false); }
+  };
+
+  // --- 🆕 EQUIPMENT LOGIC ---
+  const handleAddEquipment = async () => {
+    if (!eqName || !eqPrice) return showToast("Fill required fields", "error");
+    setUploading(true);
+    try {
+        let imageUrl = null;
+        if(eqImage) imageUrl = await uploadFile(eqImage, "equipment");
+        
+        await addDoc(collection(db, "equipment"), {
+            name: eqName, type: eqType, price: eqPrice, location: eqLocation, 
+            description: "Listed by Admin", imageUrl, 
+            ownerEmail: user.email, ownerName: "Admin", 
+            status: "Available", unavailableDates: [], createdAt: new Date()
+        });
+        showToast("Equipment Added!");
+        setEqName(""); setEqPrice(""); setEqLocation(""); setEqImage(null); setEqImagePreview(null);
+        fetchEquipment();
+    } catch(e) { showToast(e.message, "error"); }
+    finally { setUploading(false); }
+  };
+
+  const handleRequestAction = async (req, action) => {
+      try {
+          await updateDoc(doc(db, "equipment_requests", req.id), { status: action });
+          showToast(`Request ${action}`);
+          // If approved, block dates logic can be added here if needed
+          fetchEquipment();
+      } catch (e) { showToast("Action failed", "error"); }
   };
 
   // --- Render Sections ---
@@ -1065,7 +1108,7 @@ const AdminDashboard = () => {
                 <AlertTriangle size={18} /> Wipe All
             </button>
 
-            {/* 🆕 Bulk Upload for Equipment */}
+            {/* Bulk Upload for Equipment */}
             <div>
                 <input 
                     type="file" 
@@ -1083,6 +1126,55 @@ const AdminDashboard = () => {
                     Bulk Import
                 </button>
             </div>
+         </div>
+      </div>
+
+      {/* 🆕 Manual Add Equipment Form */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add Equipment Manually</h3>
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+             <div className="flex-1 w-full space-y-3">
+                 <div className="flex gap-3">
+                     <input value={eqName} onChange={(e)=>setEqName(e.target.value)} placeholder="Equipment Name" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+                     <select value={eqType} onChange={(e)=>setEqType(e.target.value)} className="border p-3 rounded-xl outline-none bg-white">
+                         <option value="Rent">Rent</option><option value="Sale">Sale</option>
+                     </select>
+                 </div>
+                 <div className="flex gap-3">
+                     <input type="number" value={eqPrice} onChange={(e)=>setEqPrice(e.target.value)} placeholder="Price (₹)" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+                     <input value={eqLocation} onChange={(e)=>setEqLocation(e.target.value)} placeholder="Location" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+                 </div>
+             </div>
+             <div className="w-full md:w-auto">
+                 <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
+                      {eqImagePreview ? ( <img src={eqImagePreview} alt="Preview" className="w-full h-full object-cover" /> ) : ( <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Image</span></> )}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleEqImageChange} />
+                  </label>
+             </div>
+             <button onClick={handleAddEquipment} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-[128px] md:h-32 transition-colors shadow-sm">
+                 {uploading ? <Loader className="animate-spin" /> : "Post"}
+             </button>
+          </div>
+      </div>
+
+      {/* 🆕 Pending Requests Section */}
+      <div className="mb-10">
+         <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Clock className="text-orange-500"/> Pending Requests</h3>
+         <div className="space-y-3">
+             {equipmentRequests.filter(r => r.status === 'Pending').length === 0 ? <p className="text-gray-400 italic">No pending requests.</p> : 
+               equipmentRequests.filter(r => r.status === 'Pending').map(req => (
+                 <div key={req.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex justify-between items-center">
+                     <div>
+                         <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                         <p className="text-xs text-gray-500">Requested by: <span className="font-bold">{req.requesterName}</span> ({req.requesterEmail})</p>
+                         <p className="text-xs text-gray-400"><Calendar size={10} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                     </div>
+                     <div className="flex gap-2">
+                         <button onClick={() => handleRequestAction(req, "Approved")} className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-green-200">Approve</button>
+                         <button onClick={() => handleRequestAction(req, "Rejected")} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">Reject</button>
+                     </div>
+                 </div>
+             ))}
          </div>
       </div>
 
@@ -1347,7 +1439,7 @@ const AdminDashboard = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {marketPrices.map(m => (
-                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
+                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
                       
                       <button onClick={() => toggleSelection(m.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10">
