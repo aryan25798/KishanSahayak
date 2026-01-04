@@ -1,17 +1,21 @@
+// src/components/EquipmentChat.jsx
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { Send, X, MessageCircle, ChevronLeft } from "lucide-react";
 
-const EquipmentChat = ({ requestId, receiverName, currentUserEmail, onClose }) => {
+// ✅ Updated prop name to 'chatId' to match EquipmentMarketplace
+const EquipmentChat = ({ chatId, receiverName, currentUserEmail, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
 
   // Separate Collection: equipment_chats
   useEffect(() => {
+    if (!chatId) return; // Safety check
+
     const q = query(
-      collection(db, "equipment_chats", requestId, "messages"),
+      collection(db, "equipment_chats", chatId, "messages"),
       orderBy("timestamp", "asc")
     );
 
@@ -20,7 +24,7 @@ const EquipmentChat = ({ requestId, receiverName, currentUserEmail, onClose }) =
     });
 
     return () => unsubscribe();
-  }, [requestId]);
+  }, [chatId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,10 +32,10 @@ const EquipmentChat = ({ requestId, receiverName, currentUserEmail, onClose }) =
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !chatId) return;
 
     try {
-      await addDoc(collection(db, "equipment_chats", requestId, "messages"), {
+      await addDoc(collection(db, "equipment_chats", chatId, "messages"), {
         text: newMessage,
         senderEmail: currentUserEmail,
         timestamp: serverTimestamp(),

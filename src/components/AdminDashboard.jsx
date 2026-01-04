@@ -1043,10 +1043,10 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="flex justify-between items-center mb-4 px-2">
-                     <button onClick={() => toggleSelectAll(pendingComplaints)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                      <button onClick={() => toggleSelectAll(pendingComplaints)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
                         {pendingComplaints.length > 0 && pendingComplaints.every(c => selectedItems.has(c.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
                         Select All Pending on Page
-                     </button>
+                      </button>
                 </div>
 
                 <div className="space-y-4">
@@ -1065,10 +1065,10 @@ const AdminDashboard = () => {
                 </h2>
                 
                 <div className="flex justify-between items-center mb-4 px-2">
-                     <button onClick={() => toggleSelectAll(resolvedComplaints)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                      <button onClick={() => toggleSelectAll(resolvedComplaints)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
                         {resolvedComplaints.length > 0 && resolvedComplaints.every(c => selectedItems.has(c.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
                         Select All Resolved on Page
-                     </button>
+                      </button>
                 </div>
 
                 <div className="space-y-4 opacity-80 hover:opacity-100 transition-opacity">
@@ -1084,7 +1084,11 @@ const AdminDashboard = () => {
   };
 
   // --- 🆕 RENDER EQUIPMENT SECTION ---
-  const renderEquipment = () => (
+  const renderEquipment = () => {
+    const pendingRequests = equipmentRequests.filter(r => r.status === 'Pending');
+    const activeRentals = equipmentRequests.filter(r => r.status === 'Approved');
+
+    return (
     <div className="animate-fade-up">
       <div className="flex justify-between items-center mb-6">
          <h2 className="text-3xl font-bold text-gray-800">Equipment Listings</h2>
@@ -1129,6 +1133,71 @@ const AdminDashboard = () => {
          </div>
       </div>
 
+      {/* --- RENTAL MANAGEMENT SECTION --- */}
+      <div className="grid lg:grid-cols-2 gap-8 mb-12">
+        {/* Left Column: Pending Requests */}
+        <div>
+             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Clock className="text-orange-500"/> Incoming Requests</h3>
+             <div className="space-y-3">
+                 {pendingRequests.length === 0 ? <p className="text-gray-400 italic bg-white p-4 rounded-xl border border-dashed">No pending requests.</p> : 
+                   pendingRequests.map(req => (
+                     <div key={req.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-3">
+                         <div className="flex justify-between items-start">
+                            <div>
+                                <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                                <p className="text-xs text-gray-500">Requested by: <span className="font-bold">{req.requesterName}</span></p>
+                                <p className="text-xs text-gray-500">{req.requesterEmail}</p>
+                                <p className="text-xs text-orange-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                            </div>
+                            {/* Chat Button */}
+                            <button 
+                                onClick={() => setActiveChat({ id: req.userId || req.requesterId, name: req.requesterName })}
+                                className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
+                                title="Chat with Farmer"
+                            >
+                                <MessageCircle size={18} />
+                            </button>
+                         </div>
+                         <div className="flex gap-2 mt-1">
+                             <button onClick={() => handleRequestAction(req, "Approved")} className="flex-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-200">Approve</button>
+                             <button onClick={() => handleRequestAction(req, "Rejected")} className="flex-1 bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-200">Reject</button>
+                         </div>
+                     </div>
+                 ))}
+             </div>
+        </div>
+
+        {/* Right Column: Active Rentals (My Bookings) */}
+        <div>
+             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><CheckCircle className="text-green-500"/> Active Rentals</h3>
+             <div className="space-y-3">
+                 {activeRentals.length === 0 ? <p className="text-gray-400 italic bg-white p-4 rounded-xl border border-dashed">No active rentals.</p> : 
+                   activeRentals.map(req => (
+                     <div key={req.id} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex flex-col gap-3">
+                         <div className="flex justify-between items-start">
+                            <div>
+                                <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                                <p className="text-xs text-gray-500">Rented by: <span className="font-bold">{req.requesterName}</span></p>
+                                <p className="text-xs text-green-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                            </div>
+                             {/* Chat Button */}
+                             <button 
+                                onClick={() => setActiveChat({ id: req.userId || req.requesterId, name: req.requesterName })}
+                                className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
+                                title="Chat with Farmer"
+                            >
+                                <MessageCircle size={18} />
+                            </button>
+                         </div>
+                         <div className="bg-green-50 text-green-800 px-3 py-2 rounded-lg text-xs font-bold text-center">
+                             Currently Rented
+                         </div>
+                     </div>
+                 ))}
+             </div>
+        </div>
+      </div>
+
       {/* 🆕 Manual Add Equipment Form */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
           <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add Equipment Manually</h3>
@@ -1149,7 +1218,7 @@ const AdminDashboard = () => {
                  <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
                       {eqImagePreview ? ( <img src={eqImagePreview} alt="Preview" className="w-full h-full object-cover" /> ) : ( <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Image</span></> )}
                       <input type="file" accept="image/*" className="hidden" onChange={handleEqImageChange} />
-                  </label>
+                 </label>
              </div>
              <button onClick={handleAddEquipment} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-[128px] md:h-32 transition-colors shadow-sm">
                  {uploading ? <Loader className="animate-spin" /> : "Post"}
@@ -1157,27 +1226,7 @@ const AdminDashboard = () => {
           </div>
       </div>
 
-      {/* 🆕 Pending Requests Section */}
-      <div className="mb-10">
-         <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Clock className="text-orange-500"/> Pending Requests</h3>
-         <div className="space-y-3">
-             {equipmentRequests.filter(r => r.status === 'Pending').length === 0 ? <p className="text-gray-400 italic">No pending requests.</p> : 
-               equipmentRequests.filter(r => r.status === 'Pending').map(req => (
-                 <div key={req.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex justify-between items-center">
-                     <div>
-                         <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
-                         <p className="text-xs text-gray-500">Requested by: <span className="font-bold">{req.requesterName}</span> ({req.requesterEmail})</p>
-                         <p className="text-xs text-gray-400"><Calendar size={10} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
-                     </div>
-                     <div className="flex gap-2">
-                         <button onClick={() => handleRequestAction(req, "Approved")} className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-green-200">Approve</button>
-                         <button onClick={() => handleRequestAction(req, "Rejected")} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">Reject</button>
-                     </div>
-                 </div>
-             ))}
-         </div>
-      </div>
-
+      <h3 className="text-lg font-bold mb-4">Your Inventory</h3>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
          {equipmentList.map(item => (
             <div key={item.id} className={`bg-white p-4 rounded-2xl shadow-sm border transition flex flex-col relative ${selectedItems.has(item.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
@@ -1209,6 +1258,7 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans pt-16">
@@ -1331,23 +1381,23 @@ const AdminDashboard = () => {
                         </thead>
                         <tbody>
                           {farmers.map(f => (
-                             <tr key={f.id} className={`border-b transition-colors ${selectedItems.has(f.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                 <td className="p-4">
-                                     <button onClick={() => toggleSelection(f.id)} className="text-gray-500 hover:text-blue-600">
-                                         {selectedItems.has(f.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
-                                     </button>
-                                 </td>
-                                 <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
-                                 <td className="p-4 text-gray-600">{f.email}</td>
-                                 <td className="p-4 flex items-center gap-2">
-                                     <button onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition">
-                                         <MessageSquare size={14} /> Chat
-                                     </button>
-                                     <button onClick={() => handleDelete("users", f.id)} className="inline-flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100 text-xs transition">
+                            <tr key={f.id} className={`border-b transition-colors ${selectedItems.has(f.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                <td className="p-4">
+                                    <button onClick={() => toggleSelection(f.id)} className="text-gray-500 hover:text-blue-600">
+                                        {selectedItems.has(f.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                                    </button>
+                                </td>
+                                <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
+                                <td className="p-4 text-gray-600">{f.email}</td>
+                                <td className="p-4 flex items-center gap-2">
+                                    <button onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition">
+                                        <MessageSquare size={14} /> Chat
+                                    </button>
+                                    <button onClick={() => handleDelete("users", f.id)} className="inline-flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100 text-xs transition">
                                         <Trash2 size={14} /> Delete
-                                     </button>
-                                 </td>
-                             </tr>
+                                    </button>
+                                </td>
+                            </tr>
                           ))}
                         </tbody>
                      </table>
