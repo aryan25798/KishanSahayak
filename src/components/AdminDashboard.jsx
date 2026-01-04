@@ -3,8 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { db, auth, storage } from "../firebase";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, setDoc, 
-  query, where, updateDoc, orderBy, limit, startAfter, writeBatch 
-} from "firebase/firestore"; // ✅ Added writeBatch for fast deletion
+  query, where, updateDoc, orderBy, limit, startAfter, writeBatch,
+  serverTimestamp, arrayUnion, arrayRemove // ✅ Added for Calendar Logic
+} from "firebase/firestore"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -12,12 +13,12 @@ import {
   Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
   Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
   MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor,
-  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, Calendar
+  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, Calendar, Star // ✅ Added Star
 } from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
-import * as XLSX from 'xlsx'; // Import SheetJS for Excel handling
+import * as XLSX from 'xlsx'; 
 import ChatInterface from "./ChatInterface";
-import EquipmentMarketplace from "./EquipmentMarketplace"; 
+import EquipmentChat from "./EquipmentChat"; 
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -35,7 +36,8 @@ const AdminDashboard = () => {
   const [marketPrices, setMarketPrices] = useState([]);
   const [applications, setApplications] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]); 
-  const [equipmentRequests, setEquipmentRequests] = useState([]); // 🆕
+  const [equipmentRequests, setEquipmentRequests] = useState([]); 
+  const [reviews, setReviews] = useState([]); // ✅ Added Reviews State
   const [loading, setLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false); 
 
@@ -46,6 +48,11 @@ const AdminDashboard = () => {
 
   // Chat State
   const [activeChat, setActiveChat] = useState(null);
+  const [chatType, setChatType] = useState(null); 
+
+  // Review State ✅
+  const [reviewRequest, setReviewRequest] = useState(null); 
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: "" });
 
   // Bulk Selection State
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -80,7 +87,7 @@ const AdminDashboard = () => {
   const [marketImagePreview, setMarketImagePreview] = useState(null); 
   const [editMarketId, setEditMarketId] = useState(null);
 
-  // --- EQUIPMENT FORM STATE --- 🆕
+  // --- EQUIPMENT FORM STATE --- 
   const [eqName, setEqName] = useState("");
   const [eqType, setEqType] = useState("Rent");
   const [eqPrice, setEqPrice] = useState("");
@@ -108,6 +115,18 @@ const AdminDashboard = () => {
   const showToast = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  // ✅ Helper to calculate dates
+  const getDatesInRange = (start, end) => {
+    const dates = [];
+    let curr = new Date(start);
+    const last = new Date(end);
+    while (curr <= last) {
+      dates.push(curr.toISOString().split('T')[0]);
+      curr.setDate(curr.getDate() + 1);
+    }
+    return dates;
   };
 
   // --- Initial Admin Check ---
@@ -208,9 +227,13 @@ const AdminDashboard = () => {
       const eqSnap = await getDocs(collection(db, "equipment"));
       setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       
-      // Fetch Requests too
+      // Fetch Requests
       const reqSnap = await getDocs(query(collection(db, "equipment_requests"), orderBy("timestamp", "desc")));
       setEquipmentRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      // Fetch Reviews
+      const rSnap = await getDocs(collection(db, "reviews"));
+      setReviews(rSnap.docs.map(d => d.data()));
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -640,13 +663,49 @@ const AdminDashboard = () => {
     finally { setUploading(false); }
   };
 
+  // ✅ Updated Action Handler to Manage Calendar
   const handleRequestAction = async (req, action) => {
       try {
+          if (action === "Approved") {
+              const dates = getDatesInRange(req.startDate, req.endDate);
+              await updateDoc(doc(db, "equipment", req.equipmentId), { unavailableDates: arrayUnion(...dates) });
+          } else if (action === "Completed") {
+              const dates = getDatesInRange(req.startDate, req.endDate);
+              await updateDoc(doc(db, "equipment", req.equipmentId), { unavailableDates: arrayRemove(...dates) });
+          } else if (action === "Rejected" && req.status === "Approved") {
+              // Free dates if cancelling
+              const dates = getDatesInRange(req.startDate, req.endDate);
+              await updateDoc(doc(db, "equipment", req.equipmentId), { unavailableDates: arrayRemove(...dates) });
+          }
+
           await updateDoc(doc(db, "equipment_requests", req.id), { status: action });
           showToast(`Request ${action}`);
-          // If approved, block dates logic can be added here if needed
           fetchEquipment();
-      } catch (e) { showToast("Action failed", "error"); }
+      } catch (e) { console.error(e); showToast("Action failed", "error"); }
+  };
+
+  // ✅ Submit Review Function
+  const submitReview = async (e) => {
+    e.preventDefault();
+    if (!reviewRequest) return;
+    try {
+        // Admin acts as owner usually, so target is requester
+        const isOwner = user.email === reviewRequest.ownerEmail;
+        const targetEmail = isOwner ? reviewRequest.requesterEmail : reviewRequest.ownerEmail;
+
+        await addDoc(collection(db, "reviews"), {
+            requestId: reviewRequest.id,
+            reviewerEmail: user.email,
+            targetEmail: targetEmail,
+            rating: reviewData.rating,
+            comment: reviewData.comment,
+            timestamp: serverTimestamp()
+        });
+        showToast("Review submitted!");
+        setReviewRequest(null);
+        setReviewData({ rating: 5, comment: "" });
+        fetchEquipment(); 
+    } catch (e) { showToast("Failed to submit review", "error"); }
   };
 
   // --- Render Sections ---
@@ -1149,9 +1208,9 @@ const AdminDashboard = () => {
                                 <p className="text-xs text-gray-500">{req.requesterEmail}</p>
                                 <p className="text-xs text-orange-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
                             </div>
-                            {/* Chat Button */}
+                            {/* Chat Button - ✅ NOW USES equipment ID and type */}
                             <button 
-                                onClick={() => setActiveChat({ id: req.userId || req.requesterId, name: req.requesterName })}
+                                onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
                                 className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
                                 title="Chat with Farmer"
                             >
@@ -1172,7 +1231,9 @@ const AdminDashboard = () => {
              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><CheckCircle className="text-green-500"/> Active Rentals</h3>
              <div className="space-y-3">
                  {activeRentals.length === 0 ? <p className="text-gray-400 italic bg-white p-4 rounded-xl border border-dashed">No active rentals.</p> : 
-                   activeRentals.map(req => (
+                   activeRentals.map(req => {
+                     const hasReviewed = reviews.some(r => r.requestId === req.id && r.reviewerEmail === user.email);
+                     return (
                      <div key={req.id} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex flex-col gap-3">
                          <div className="flex justify-between items-start">
                             <div>
@@ -1180,9 +1241,9 @@ const AdminDashboard = () => {
                                 <p className="text-xs text-gray-500">Rented by: <span className="font-bold">{req.requesterName}</span></p>
                                 <p className="text-xs text-green-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
                             </div>
-                             {/* Chat Button */}
+                             {/* Chat Button - ✅ NOW USES equipment ID and type */}
                              <button 
-                                onClick={() => setActiveChat({ id: req.userId || req.requesterId, name: req.requesterName })}
+                                onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
                                 className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
                                 title="Chat with Farmer"
                             >
@@ -1192,8 +1253,19 @@ const AdminDashboard = () => {
                          <div className="bg-green-50 text-green-800 px-3 py-2 rounded-lg text-xs font-bold text-center">
                              Currently Rented
                          </div>
+                         {/* ✅ Mark Done Button */}
+                         <button onClick={() => handleRequestAction(req, "Completed")} className="w-full bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-900 transition flex items-center justify-center gap-2">
+                             <CheckSquare size={14}/> Mark Completed
+                         </button>
+                         {/* ✅ Rate Button */}
+                         {req.status === "Completed" && !hasReviewed && (
+                            <button onClick={() => setReviewRequest(req)} className="w-full border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-yellow-50 flex items-center justify-center gap-2 transition">
+                                <Star size={14}/> Rate User
+                            </button>
+                         )}
                      </div>
-                 ))}
+                   );
+                 })}
              </div>
         </div>
       </div>
@@ -1256,6 +1328,23 @@ const AdminDashboard = () => {
          ))}
          {equipmentList.length === 0 && <p className="col-span-full text-center py-10 text-gray-400">No equipment found.</p>}
       </div>
+
+      {/* ✅ Review Modal */}
+      {reviewRequest && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full relative text-center shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-2xl font-bold mb-2 text-slate-800">Rate Farmer</h3>
+            <p className="text-gray-500 text-sm mb-6">How was your deal with {reviewRequest.requesterName}?</p>
+            <div className="flex justify-center gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map(s => <button key={s} onClick={() => setReviewData({...reviewData, rating: s})} className="transition hover:scale-110"><Star size={32} className={s <= reviewData.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-200"}/></button>)}
+            </div>
+            <textarea placeholder="Write a comment..." className="w-full p-3 border rounded-xl h-24 mb-4 outline-none focus:ring-2 focus:ring-orange-200 resize-none" onChange={e => setReviewData({...reviewData, comment: e.target.value})}></textarea>
+            <button onClick={submitReview} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition">Submit Review</button>
+            <button onClick={() => setReviewRequest(null)} className="mt-4 text-gray-400 text-sm hover:text-gray-600">Cancel</button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
   };
@@ -1390,7 +1479,10 @@ const AdminDashboard = () => {
                                 <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
                                 <td className="p-4 text-gray-600">{f.email}</td>
                                 <td className="p-4 flex items-center gap-2">
-                                    <button onClick={() => setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" })} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition">
+                                    <button 
+                                        onClick={() => { setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" }); setChatType("general"); }} 
+                                        className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition"
+                                    >
                                         <MessageSquare size={14} /> Chat
                                     </button>
                                     <button onClick={() => handleDelete("users", f.id)} className="inline-flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100 text-xs transition">
@@ -1579,12 +1671,22 @@ const AdminDashboard = () => {
 
       </div>
 
-      {activeChat && (
+      {/* ✅ Conditionally Render Chat Based on Type */}
+      {activeChat && chatType === "general" && (
         <ChatInterface 
           chatId={`chat_${activeChat.id}`} 
           receiverName={activeChat.name}
           isUserAdmin={true} 
-          onClose={() => setActiveChat(null)}
+          onClose={() => { setActiveChat(null); setChatType(null); }}
+        />
+      )}
+
+      {activeChat && chatType === "equipment" && (
+        <EquipmentChat 
+          chatId={activeChat.id} 
+          receiverName={activeChat.name}
+          currentUserEmail={user.email} 
+          onClose={() => { setActiveChat(null); setChatType(null); }}
         />
       )}
 
