@@ -34,6 +34,7 @@ const AdminDashboard = () => {
   const [forumPosts, setForumPosts] = useState([]);
   const [marketPrices, setMarketPrices] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [equipmentList, setEquipmentList] = useState([]); 
   const [loading, setLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false); 
 
@@ -53,6 +54,7 @@ const AdminDashboard = () => {
   const productFileRef = useRef(null);
   const schemeFileRef = useRef(null);
   const marketFileRef = useRef(null);
+  const equipmentFileRef = useRef(null); 
 
   // --- PRODUCT FORM STATE ---
   const [productName, setProductName] = useState("");
@@ -65,16 +67,16 @@ const AdminDashboard = () => {
   const [schemeTitle, setSchemeTitle] = useState("");
   const [schemeDesc, setSchemeDesc] = useState("");
   const [schemeCategory, setSchemeCategory] = useState("Scheme");
-  const [schemeImage, setSchemeImage] = useState(null); // 🆕
-  const [schemeImagePreview, setSchemeImagePreview] = useState(null); // 🆕
+  const [schemeImage, setSchemeImage] = useState(null); 
+  const [schemeImagePreview, setSchemeImagePreview] = useState(null); 
 
   // --- MARKET PRICE FORM STATE ---
   const [marketCrop, setMarketCrop] = useState("");
   const [marketMandi, setMarketMandi] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
   const [marketChange, setMarketChange] = useState("up");
-  const [marketImage, setMarketImage] = useState(null); // 🆕
-  const [marketImagePreview, setMarketImagePreview] = useState(null); // 🆕
+  const [marketImage, setMarketImage] = useState(null); 
+  const [marketImagePreview, setMarketImagePreview] = useState(null); 
   const [editMarketId, setEditMarketId] = useState(null);
 
   // Complaint Resolution State
@@ -191,6 +193,15 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
+  const fetchEquipment = async () => {
+    setLoading(true);
+    try {
+      const eqSnap = await getDocs(collection(db, "equipment"));
+      setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
   useEffect(() => { 
     if (user?.email === "admin@system.com") {
         if (activeTab === "products" && products.length === 0) fetchProducts();
@@ -200,6 +211,7 @@ const AdminDashboard = () => {
         if (activeTab === "forum") fetchForum();
         if (activeTab === "market") fetchMarket();
         if (activeTab === "applications") fetchApplications();
+        if (activeTab === "equipment") fetchEquipment(); 
     }
   }, [user, activeTab]);
 
@@ -256,6 +268,20 @@ const AdminDashboard = () => {
                         imageUrl: row.imageUrl || null, 
                         timestamp: new Date()
                     });
+                } else if (type === "equipment") {
+                    await addDoc(collection(db, "equipment"), {
+                        name: row.name || "Unnamed Equipment",
+                        type: row.type || "Rent", 
+                        price: row.price || "0",
+                        location: row.location || "Unknown",
+                        description: row.description || "",
+                        imageUrl: row.imageUrl || null,
+                        ownerEmail: "admin@system.com",
+                        ownerName: "Kishan Sahayak Admin",
+                        status: "Available",
+                        unavailableDates: [],
+                        createdAt: new Date()
+                    });
                 }
                 successCount++;
             }
@@ -265,6 +291,7 @@ const AdminDashboard = () => {
             if (type === "products") { setProducts([]); fetchProducts(); }
             if (type === "schemes") { setSchemes([]); fetchSchemes(); }
             if (type === "market") { setMarketPrices([]); fetchMarket(); }
+            if (type === "equipment") { setEquipmentList([]); fetchEquipment(); } 
 
         } catch (error) {
             console.error("Bulk Upload Error:", error);
@@ -274,6 +301,7 @@ const AdminDashboard = () => {
             if(productFileRef.current) productFileRef.current.value = "";
             if(schemeFileRef.current) schemeFileRef.current.value = "";
             if(marketFileRef.current) marketFileRef.current.value = "";
+            if(equipmentFileRef.current) equipmentFileRef.current.value = ""; 
         }
     };
 
@@ -340,6 +368,7 @@ const AdminDashboard = () => {
         if (collectionName === "complaints") setComplaints(prev => prev.filter(c => !selectedItems.has(c.id)));
         if (collectionName === "market_prices") setMarketPrices(prev => prev.filter(m => !selectedItems.has(m.id)));
         if (collectionName === "forum_posts") setForumPosts(prev => prev.filter(p => !selectedItems.has(p.id)));
+        if (collectionName === "equipment") setEquipmentList(prev => prev.filter(e => !selectedItems.has(e.id))); 
 
         setSelectedItems(new Set()); 
 
@@ -382,6 +411,7 @@ const AdminDashboard = () => {
         if (collectionName === "market_prices") setMarketPrices([]);
         if (collectionName === "forum_posts") setForumPosts([]);
         if (collectionName === "applications") setApplications([]);
+        if (collectionName === "equipment") setEquipmentList([]); 
 
     } catch (e) {
         console.error(e);
@@ -468,11 +498,9 @@ const AdminDashboard = () => {
     setUploading(true);
     try {
       let imageUrl = null;
-      // 🆕 Check for manual upload first
       if (schemeImage) {
           imageUrl = await uploadFile(schemeImage, "schemes");
       } else {
-          // Fallback to Google Search
           imageUrl = await fetchGoogleImage(schemeTitle);
       }
 
@@ -504,7 +532,7 @@ const AdminDashboard = () => {
       }
 
       const payload = { crop: marketCrop, market: marketMandi, price: marketPrice, change: marketChange, timestamp: new Date() };
-      if (imageUrl) payload.imageUrl = imageUrl; // Only update image if new one provided
+      if (imageUrl) payload.imageUrl = imageUrl; 
 
       if (editMarketId) {
         await updateDoc(doc(db, "market_prices", editMarketId), payload);
@@ -540,6 +568,7 @@ const AdminDashboard = () => {
         if (col === "complaints") setComplaints(prev => prev.filter(c => c.id !== id)); 
         if (col === "market_prices") setMarketPrices(prev => prev.filter(m => m.id !== id)); 
         if (col === "forum_posts") setForumPosts(prev => prev.filter(p => p.id !== id)); 
+        if (col === "equipment") setEquipmentList(prev => prev.filter(e => e.id !== id)); 
       } catch(e) { showToast("Error deleting: " + e.message, "error"); }
     }
   };
@@ -579,7 +608,6 @@ const AdminDashboard = () => {
               </button>
            )}
            
-           {/* 🆕 Wipe All Button */}
            <button 
               onClick={() => handleWipeCollection("products")}
               className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
@@ -588,7 +616,6 @@ const AdminDashboard = () => {
               <AlertTriangle size={18} /> Wipe All Data
            </button>
 
-           {/* 🆕 Bulk Upload Button */}
            <div>
               <input 
                   type="file" 
@@ -688,7 +715,6 @@ const AdminDashboard = () => {
                 </button>
             )}
 
-            {/* 🆕 Wipe All Button */}
             <button 
                 onClick={() => handleWipeCollection("schemes")}
                 className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
@@ -696,7 +722,6 @@ const AdminDashboard = () => {
                 <AlertTriangle size={18} /> Wipe All
             </button>
 
-            {/* 🆕 Bulk Upload Button */}
             <div>
                 <input 
                     type="file" 
@@ -751,7 +776,6 @@ const AdminDashboard = () => {
                 <textarea value={schemeDesc} onChange={(e)=>setSchemeDesc(e.target.value)} placeholder="Description" className="border p-3 rounded-xl w-full h-20 outline-none focus:ring-2 focus:ring-green-500 text-sm" />
               </div>
               
-              {/* 🆕 Scheme Image Input */}
               <div className="w-full md:w-auto flex flex-col gap-2">
                   <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
                       {schemeImagePreview ? ( <img src={schemeImagePreview} alt="Preview" className="w-full h-full object-cover" /> ) : ( <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Image</span></> )}
@@ -798,14 +822,12 @@ const AdminDashboard = () => {
       <div className="flex justify-between items-center mb-6">
          <h2 className="text-3xl font-bold text-gray-800">Scheme Applications</h2>
          <div className="flex gap-2">
-             {/* 🆕 Wipe All Button */}
              <button 
                 onClick={() => handleWipeCollection("applications")}
                 className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
              >
                 <AlertTriangle size={18} /> Wipe All
              </button>
-             {/* 🆕 Download Excel Button */}
              <button 
                 onClick={downloadApplicationsExcel}
                 className="flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded-xl font-bold hover:bg-green-800 transition shadow-md"
@@ -951,7 +973,6 @@ const AdminDashboard = () => {
                                 Delete ({selectedItems.size})
                             </button>
                         )}
-                        {/* 🆕 Wipe All Button */}
                         <button 
                             onClick={() => handleWipeCollection("complaints")}
                             className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
@@ -1002,6 +1023,84 @@ const AdminDashboard = () => {
     );
   };
 
+  // --- 🆕 RENDER EQUIPMENT SECTION ---
+  const renderEquipment = () => (
+    <div className="animate-fade-up">
+      <div className="flex justify-between items-center mb-6">
+         <h2 className="text-3xl font-bold text-gray-800">Equipment Listings</h2>
+         
+         <div className="flex gap-2">
+            {selectedItems.size > 0 && (
+                <button 
+                    onClick={() => handleBulkDelete("equipment")}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                >
+                    {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                    Delete ({selectedItems.size})
+                </button>
+            )}
+
+            <button 
+                onClick={() => handleWipeCollection("equipment")}
+                className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+            >
+                <AlertTriangle size={18} /> Wipe All
+            </button>
+
+            {/* 🆕 Bulk Upload for Equipment */}
+            <div>
+                <input 
+                    type="file" 
+                    accept=".csv, .xlsx, .xls" 
+                    className="hidden" 
+                    ref={equipmentFileRef}
+                    onChange={(e) => handleBulkUpload(e, "equipment")}
+                />
+                <button 
+                    onClick={() => equipmentFileRef.current.click()}
+                    disabled={bulkLoading}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
+                >
+                    {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
+                    Bulk Import
+                </button>
+            </div>
+         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+         {equipmentList.map(item => (
+            <div key={item.id} className={`bg-white p-4 rounded-2xl shadow-sm border transition flex flex-col relative ${selectedItems.has(item.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
+                <button onClick={() => toggleSelection(item.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10 p-2 bg-white/80 rounded-full">
+                    {selectedItems.has(item.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                </button>
+                
+                <img src={item.imageUrl} alt={item.name} className="w-full h-40 object-cover rounded-xl mb-3 bg-gray-100"/>
+                
+                <div className="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 className="font-bold text-gray-800 line-clamp-1">{item.name}</h4>
+                        <p className="text-xs text-gray-500">{item.location}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${item.type === 'Rent' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                        {item.type}
+                    </span>
+                </div>
+                
+                <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-100">
+                    <span className="font-bold text-orange-600">₹{item.price}</span>
+                    <button onClick={() => handleDelete("equipment", item.id)} className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition">
+                        <Trash2 size={16}/>
+                    </button>
+                </div>
+            </div>
+         ))}
+         {equipmentList.length === 0 && <p className="col-span-full text-center py-10 text-gray-400">No equipment found.</p>}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans pt-16">
       
@@ -1012,21 +1111,22 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Mobile Toggle Button */}
+      {/* Mobile Toggle Button (High Z-Index Fix) */}
       <button 
         onClick={() => setIsSidebarOpen(true)}
-        className="md:hidden fixed bottom-6 right-6 z-40 bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform"
+        className="md:hidden fixed bottom-8 right-6 z-[100] bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-95"
+        title="Open Admin Menu"
       >
         <Menu size={24} />
       </button>
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white p-6 
+        fixed inset-y-0 left-0 z-[100] w-64 bg-slate-900 text-white p-6 
         transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0 md:fixed md:top-16 md:bottom-0 md:left-0 md:z-30
-        flex flex-col h-[calc(100vh-4rem)] md:h-auto border-r border-gray-800
+        flex flex-col h-full border-r border-gray-800
       `}>
         <div className="flex justify-between items-center mb-8 shrink-0">
             <h2 className="text-xl font-bold text-green-400 tracking-tight flex items-center gap-2"><Package size={24}/> Admin Panel</h2>
@@ -1067,7 +1167,7 @@ const AdminDashboard = () => {
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)} 
-          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 z-[90] md:hidden backdrop-blur-sm"
         ></div>
       )}
 
@@ -1078,12 +1178,7 @@ const AdminDashboard = () => {
         {activeTab === "schemes" && renderSchemes()}
         {activeTab === "applications" && renderApplications()}
         {activeTab === "complaints" && renderComplaints()}
-
-        {activeTab === "equipment" && (
-           <div className="animate-fade-up">
-              <EquipmentMarketplace adminOverride={true} />
-           </div>
-        )}
+        {activeTab === "equipment" && renderEquipment()} 
 
         {activeTab === "farmers" && (
              <div className="animate-fade-up">
@@ -1235,7 +1330,7 @@ const AdminDashboard = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {marketPrices.map(m => (
-                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
+                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
                       
                       <button onClick={() => toggleSelection(m.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10">
