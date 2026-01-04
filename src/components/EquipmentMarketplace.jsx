@@ -3,7 +3,7 @@ import { db, auth, storage } from "../firebase";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, updateDoc, 
   query, where, serverTimestamp, arrayUnion, arrayRemove,
-  getDoc // ✅ Added missing import here
+  getDoc 
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
@@ -210,7 +210,6 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
         const bookedDates = getDatesInRange(req.startDate, req.endDate);
         const itemRef = doc(db, "equipment", req.equipmentId);
         
-        // ✅ UPDATED LOGIC: Use arrayUnion with spread operator to update reliably
         await updateDoc(itemRef, { 
           unavailableDates: arrayUnion(...bookedDates) 
         });
@@ -224,10 +223,31 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
     }
   };
 
+  // ✅ FIXED: Automatically unblocks dates when request is marked as completed
   const handleCompleteRequest = async (req) => {
-    if(!confirm("Mark this transaction as completed?")) return;
-    await updateDoc(doc(db, "equipment_requests", req.id), { status: "Completed" });
-    fetchData();
+    if(!confirm("Mark this transaction as completed? This will make the equipment available again for these dates.")) return;
+    
+    try {
+      // 1. Update Request Status
+      await updateDoc(doc(db, "equipment_requests", req.id), { status: "Completed" });
+
+      // 2. Free up the dates (Remove from unavailableDates)
+      if (req.startDate && req.endDate) {
+        const bookedDates = getDatesInRange(req.startDate, req.endDate);
+        const itemRef = doc(db, "equipment", req.equipmentId);
+        
+        // Use spread operator to remove all dates in the range
+        await updateDoc(itemRef, { 
+          unavailableDates: arrayRemove(...bookedDates) 
+        });
+      }
+
+      toast.success("Completed & Dates Freed!");
+      fetchData();
+    } catch (e) {
+      console.error("Error completing request:", e);
+      toast.error("Error completing request.");
+    }
   };
 
   const submitReview = async (e) => {
@@ -240,7 +260,7 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
       const targetEmail = isOwner ? reviewRequest.requesterEmail : reviewRequest.ownerEmail;
 
       await addDoc(collection(db, "reviews"), {
-        requestId: reviewRequest.id,
+        requestId: reviewRequest.id, // Store request ID to prevent duplicates
         reviewerEmail: user.email,
         targetEmail: targetEmail,
         rating: reviewData.rating,
@@ -404,6 +424,9 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
             if(req.status === "Rejected") statusColor = "bg-red-100 text-red-700 border-red-200";
             if(req.status === "Completed") statusColor = "bg-blue-100 text-blue-700 border-blue-200";
 
+            // ✅ FIXED: Check if the current user has already reviewed this request
+            const hasReviewed = reviews.some(r => r.requestId === req.id);
+
             return (
               <div key={req.id} className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:shadow-md">
                 <div className="flex items-start sm:items-center gap-4 w-full md:w-auto">
@@ -445,10 +468,17 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                   )}
 
                   {/* COMPLETED ACTIONS */}
+                  {/* ✅ FIXED: Show "Reviewed" badge if reviewed, otherwise show button */}
                   {req.status === "Completed" && (
-                    <button onClick={() => setReviewRequest(req)} className="flex-1 md:flex-none border border-orange-500 text-orange-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-orange-50">
-                       <Star size={16}/> Leave Review
-                    </button>
+                    hasReviewed ? (
+                        <span className="flex-1 md:flex-none px-4 py-2 text-green-700 bg-green-50 border border-green-200 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-default">
+                           <CheckCircle size={16}/> Reviewed
+                        </span>
+                    ) : (
+                        <button onClick={() => setReviewRequest(req)} className="flex-1 md:flex-none border border-orange-500 text-orange-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-orange-50">
+                           <Star size={16}/> Leave Review
+                        </button>
+                    )
                   )}
                 </div>
               </div>
