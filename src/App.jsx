@@ -143,7 +143,7 @@ const Home = () => (
       </div>
     </div>
 
-    {/* 3. FEATURES GRID */}
+    {/* 3. FEATURES GRID - RESPONSIVE BENTO GRID */}
     <div id="features" className="max-w-7xl mx-auto px-6 py-24">
       <div className="text-center mb-16">
         <h2 className="text-sm font-extrabold text-emerald-600 uppercase tracking-widest mb-3 bg-emerald-50 inline-block px-4 py-1 rounded-full border border-emerald-100">
@@ -154,177 +154,98 @@ const Home = () => (
         </h3>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
         
-        {/* MY FARM CARD */}
-        <Link to="/my-farm" className="group relative bg-white border-2 border-green-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-green-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-green-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-green-200">
-              <Sprout size={32} />
+        {/* Large Card - Weather (Spans 2 cols, 2 rows) */}
+        <motion.div whileHover={{ y: -5 }} className="col-span-1 md:col-span-2 row-span-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-full transition-transform group-hover:scale-110"></div>
+            <CloudRain className="w-32 h-32 absolute -right-4 -bottom-4 opacity-20" />
+            <div className="relative z-10">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
+                    <CloudRain size={24} className="text-white"/>
+                </div>
+                <h3 className="text-3xl font-bold mb-2">Precision Weather</h3>
+                <p className="text-blue-100 mb-6 max-w-xs text-lg">Hyper-local forecasts, rainfall predictions, and humidity alerts tailored for your specific village.</p>
+                <Link to="/weather" className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-6 py-3 rounded-xl font-bold border border-white/30 hover:bg-white/30 transition-all">
+                    Check Forecast <ArrowRight size={18}/>
+                </Link>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-green-700 transition-colors">My Farm Profile</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Update your farm details, soil type, and location to get personalized AI advice and schemes.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-green-50 text-green-700 font-bold flex items-center justify-center gap-2 group-hover:bg-green-600 group-hover:text-white transition-all">
-              Manage Farm <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        </motion.div>
 
-        {/* CROP DOCTOR CARD */}
-        <Link to="/doctor" className="group relative bg-white border-2 border-red-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-red-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 to-red-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-red-200">
-              <Stethoscope size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-red-700 transition-colors">Crop Doctor</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Take a photo of your sick plant. Our AI identifies the disease and suggests organic & chemical cures instantly.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-red-50 text-red-700 font-bold flex items-center justify-center gap-2 group-hover:bg-red-600 group-hover:text-white transition-all">
-              Diagnose Now <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Crop Doctor */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Stethoscope size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">Crop Doctor</h3>
+            <p className="text-slate-500 text-sm mb-4"> AI disease detection & cures.</p>
+            <Link to="/doctor" className="text-sm font-bold text-red-500 flex items-center gap-1 group-hover:gap-2 transition-all">Diagnose <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* Weather Card */}
-        <Link to="/weather" className="group relative bg-white border-2 border-blue-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-blue-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-blue-200">
-              <CloudRain size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-blue-700 transition-colors">Precision Weather</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Hyper-local forecasts, rainfall predictions, and humidity alerts tailored for your specific village.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:text-white transition-all">
-              Check Now <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Mandi */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><TrendingUp size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">Mandi Bhav</h3>
+            <p className="text-slate-500 text-sm mb-4">Real-time market prices.</p>
+            <Link to="/market" className="text-sm font-bold text-purple-500 flex items-center gap-1 group-hover:gap-2 transition-all">Check Prices <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* Equipment Marketplace Card */}
-        <Link to="/equipment" className="group relative bg-white border-2 border-amber-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-amber-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-amber-200">
-              <Tractor size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-amber-700 transition-colors">Equipment Mandi</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Rent tractors, harvestors, and tools from nearby farmers. Or list your own equipment to earn extra income.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-amber-50 text-amber-700 font-bold flex items-center justify-center gap-2 group-hover:bg-amber-600 group-hover:text-white transition-all">
-              Rent or Buy <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - My Farm */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Sprout size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">My Farm</h3>
+            <p className="text-slate-500 text-sm mb-4">Manage farm profile & soil.</p>
+            <Link to="/my-farm" className="text-sm font-bold text-green-500 flex items-center gap-1 group-hover:gap-2 transition-all">Manage <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* Verify Card */}
-        <Link to="/verify" className="group relative bg-white border-2 border-emerald-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-emerald-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-emerald-200">
-              <ShieldCheck size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-emerald-700 transition-colors">Product Verify</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Scan seed packets and fertilizers to detect counterfeits instantly using our database.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center gap-2 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-              Scan Code <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Equipment */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Tractor size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">Equipment</h3>
+            <p className="text-slate-500 text-sm mb-4">Rent or buy tractors.</p>
+            <Link to="/equipment" className="text-sm font-bold text-amber-500 flex items-center gap-1 group-hover:gap-2 transition-all">Rent Now <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* Schemes Card */}
-        <Link to="/schemes" className="group relative bg-white border-2 border-orange-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-orange-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-orange-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-orange-200">
-              <ScrollText size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-orange-700 transition-colors">Subsidy Finder</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              AI-matched government schemes. Find loans, equipment subsidies, and insurance easily.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-orange-50 text-orange-700 font-bold flex items-center justify-center gap-2 group-hover:bg-orange-600 group-hover:text-white transition-all">
-              Find Schemes <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Wide Card - Schemes (Spans 2 cols) */}
+        <div className="col-span-1 md:col-span-2 bg-orange-50 border border-orange-100 rounded-3xl p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between relative overflow-hidden group">
+             <div className="relative z-10 max-w-md">
+               <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mb-4"><ScrollText size={24}/></div>
+               <h3 className="text-2xl font-bold text-orange-900 mb-2">Govt. Schemes</h3>
+               <p className="text-orange-700 mb-6 font-medium">Find subsidies for tractors, seeds, and insurance tailored to you.</p>
+               <Link to="/schemes" className="px-6 py-3 bg-white text-orange-600 font-bold rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">View Schemes <ArrowRight size={18}/></Link>
+             </div>
+             <ScrollText className="absolute -right-4 -bottom-4 w-40 h-40 text-orange-200/50 -rotate-12 group-hover:rotate-0 transition-transform duration-500" />
+        </div>
 
-        {/* Market Prices Card */}
-        <Link to="/market" className="group relative bg-white border-2 border-purple-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-purple-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-purple-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-purple-200">
-              <TrendingUp size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-purple-700 transition-colors">Mandi Bhav</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Real-time market prices for crops in your nearby mandis. Track trends and sell at the right time.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-purple-50 text-purple-700 font-bold flex items-center justify-center gap-2 group-hover:bg-purple-600 group-hover:text-white transition-all">
-              Check Prices <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Verify */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><ShieldCheck size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">Verify Product</h3>
+            <p className="text-slate-500 text-sm mb-4">Detect fake seeds & fertilizers.</p>
+            <Link to="/verify" className="text-sm font-bold text-emerald-500 flex items-center gap-1 group-hover:gap-2 transition-all">Scan Code <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* Community Forum Card */}
-        <Link to="/forum" className="group relative bg-white border-2 border-rose-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-rose-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-rose-400 to-rose-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-rose-200">
-              <Users size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-rose-700 transition-colors">Kisan Chopal</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Connect with other farmers, ask questions, share tips, and solve farming problems together.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-rose-50 text-rose-700 font-bold flex items-center justify-center gap-2 group-hover:bg-rose-600 group-hover:text-white transition-all">
-              Join Community <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Forum */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Users size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">Kisan Chopal</h3>
+            <p className="text-slate-500 text-sm mb-4">Community forum for farmers.</p>
+            <Link to="/forum" className="text-sm font-bold text-rose-500 flex items-center gap-1 group-hover:gap-2 transition-all">Join <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* Resource Map Card */}
-        <Link to="/map" className="group relative bg-white border-2 border-teal-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-teal-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-400 to-teal-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-teal-200">
-              <MapPinned size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-teal-700 transition-colors">Resources Map</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Locate nearby seed shops, testing labs, and agricultural centers with step-by-step directions.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-teal-50 text-teal-700 font-bold flex items-center justify-center gap-2 group-hover:bg-teal-600 group-hover:text-white transition-all">
-              View Map <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Map */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-teal-50 text-teal-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><MapPinned size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">Resource Map</h3>
+            <p className="text-slate-500 text-sm mb-4">Find nearby shops & labs.</p>
+            <Link to="/map" className="text-sm font-bold text-teal-500 flex items-center gap-1 group-hover:gap-2 transition-all">View Map <ArrowRight size={16}/></Link>
+        </div>
 
-        {/* ✅ NEW: Contact Support Card */}
-        <Link to="/support" className="group relative bg-white border-2 border-slate-100 p-8 rounded-[2rem] shadow-xl hover:shadow-2xl hover:border-slate-300 transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-slate-400 to-slate-600"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300 border border-slate-200">
-              <Headset size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-slate-700 transition-colors">24/7 Support</h3>
-            <p className="text-slate-600 font-medium leading-relaxed mb-8">
-              Facing issues? Chat with our support team or raise a ticket for quick resolution.
-            </p>
-            <div className="w-full py-3 rounded-xl bg-slate-50 text-slate-700 font-bold flex items-center justify-center gap-2 group-hover:bg-slate-600 group-hover:text-white transition-all">
-              Contact Us <ArrowRight size={18} />
-            </div>
-          </div>
-        </Link>
+        {/* Standard Card - Support */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="w-12 h-12 bg-slate-50 text-slate-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Headset size={24} /></div>
+            <h3 className="font-bold text-xl text-slate-800 mb-2">24/7 Support</h3>
+            <p className="text-slate-500 text-sm mb-4">Help & Ticket Support.</p>
+            <Link to="/support" className="text-sm font-bold text-slate-500 flex items-center gap-1 group-hover:gap-2 transition-all">Contact <ArrowRight size={16}/></Link>
+        </div>
 
       </div>
     </div>
