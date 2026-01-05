@@ -96,6 +96,9 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
 
   useEffect(() => { fetchData(); }, [user]);
 
+  // --- Reset Search on Tab Change ---
+  useEffect(() => { setSearchQuery(""); }, [activeTab]);
+
   // --- Helpers ---
   
   // Calculates average rating for a SPECIFIC ITEM based on Owner performance
@@ -264,7 +267,7 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
       
       await addDoc(collection(db, "reviews"), {
         requestId: reviewRequest.id,
-        equipmentId: reviewRequest.equipmentId,
+        equipmentId: reviewRequest.equipmentId || null, // Ensure equipmentId is saved if available
         reviewerEmail: user.email,
         targetEmail: targetEmail,
         rating: reviewData.rating,
@@ -366,12 +369,13 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
       {/* --- TAB 1: BROWSE MARKET --- */}
       {activeTab === "browse" && (
         <div className="animate-in slide-in-from-bottom-8 duration-700 ease-out">
-          <div className="relative mb-10 group max-w-2xl">
+          <div className="relative mb-10 group max-w-2xl mx-auto md:mx-0">
             <input 
               type="text" 
               placeholder="Search tractors, harvesters, seeders..." 
               className="w-full pl-14 pr-4 py-5 rounded-[20px] border-none bg-white shadow-xl shadow-slate-200/40 ring-1 ring-slate-100 focus:ring-4 focus:ring-orange-100 outline-none transition-all placeholder:text-gray-400 text-lg"
               onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchQuery}
             />
             <Search className="absolute left-5 top-5 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={24}/>
           </div>
@@ -413,11 +417,13 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
 
                     <div className="absolute bottom-5 left-5 right-5 text-white">
                       <div className="flex justify-between items-end mb-1">
-                          <h3 className="font-bold text-2xl leading-tight truncate drop-shadow-sm">{item.name}</h3>
+                          <h3 className="font-bold text-2xl leading-tight truncate drop-shadow-sm max-w-[70%]">{item.name}</h3>
                           {rating && (
                             <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
                                 <Star size={12} className="fill-orange-400 text-orange-400"/>
-                                <span className="font-bold text-sm">{rating.avg}</span>
+                                <span className="font-bold text-sm">
+                                    {rating.avg} <span className="text-[10px] opacity-75 font-normal ml-0.5">({rating.count})</span>
+                                </span>
                             </div>
                           )}
                       </div>
@@ -465,9 +471,22 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
       {/* --- TAB 2: MY BOOKINGS (Outgoing) --- */}
       {activeTab === "bookings" && (
         <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-700 max-w-5xl mx-auto pb-20">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 mb-4">
-             <ShoppingBag className="text-orange-500"/> My Rented Items
-          </h2>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  <ShoppingBag className="text-orange-500"/> My Rented Items
+              </h2>
+              {/* ✅ Search for Bookings */}
+              <div className="relative w-full md:w-72">
+                  <input 
+                    type="text" 
+                    placeholder="Search bookings..." 
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition text-sm"
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchQuery}
+                  />
+                  <Search className="absolute left-3 top-3 text-gray-400" size={16}/>
+              </div>
+          </div>
           
           {myBookings.length === 0 ? (
             <div className="text-center py-24 bg-white rounded-[2rem] border border-dashed border-gray-200">
@@ -477,7 +496,9 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
               <button onClick={() => setActiveTab("browse")} className="text-orange-600 font-bold hover:underline">Start Browsing</button>
             </div>
           ) : (
-            myBookings.map(req => {
+            myBookings
+            .filter(req => req.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()))
+            .map(req => {
               const hasReviewed = reviews.some(r => r.requestId === req.id && r.reviewerEmail === user.email);
               return (
                 <div key={req.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl transition-all flex flex-col md:flex-row gap-6 group hover:-translate-y-1">
@@ -499,9 +520,9 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                     </div>
 
                     <div className="bg-gray-50/50 p-3 rounded-xl border border-gray-100 flex flex-wrap gap-4 text-sm text-gray-600 mb-5">
-                       <span className="flex items-center gap-2"><Calendar size={14} className="text-orange-500"/> <b>Start:</b> {req.startDate}</span>
-                       <span className="flex items-center gap-2"><CalendarCheck size={14} className="text-orange-500"/> <b>End:</b> {req.endDate}</span>
-                       <span className="flex items-center gap-2 ml-auto text-xs text-gray-400"><Clock size={12}/> Requested {formatTime(req.timestamp)}</span>
+                        <span className="flex items-center gap-2"><Calendar size={14} className="text-orange-500"/> <b>Start:</b> {req.startDate}</span>
+                        <span className="flex items-center gap-2"><CalendarCheck size={14} className="text-orange-500"/> <b>End:</b> {req.endDate}</span>
+                        <span className="flex items-center gap-2 ml-auto text-xs text-gray-400"><Clock size={12}/> Requested {formatTime(req.timestamp)}</span>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
@@ -554,6 +575,21 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
               </form>
             </div>
           ) : (
+            <>
+            <div className="mb-8 flex justify-end">
+                {/* ✅ Search Input for Store */}
+                <div className="relative w-full md:w-72">
+                    <input 
+                        type="text" 
+                        placeholder="Search requests or inventory..." 
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition text-sm bg-white"
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        value={searchQuery}
+                    />
+                    <Search className="absolute left-3 top-3.5 text-gray-400" size={16}/>
+                </div>
+            </div>
+
             <div className="grid xl:grid-cols-3 gap-8">
               
               {/* --- Left Col: Order Management (History) --- */}
@@ -566,10 +602,12 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                         Action Required
                     </h3>
                     <div className="space-y-4">
-                        {incomingRequests.filter(r => r.status === 'Pending').length === 0 && (
+                        {incomingRequests.filter(r => r.status === 'Pending' && (r.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) || r.requesterName.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
                             <p className="text-gray-400 italic bg-white p-6 rounded-2xl border border-dashed text-center text-sm">No new requests pending.</p>
                         )}
-                        {incomingRequests.filter(r => r.status === 'Pending').map(req => (
+                        {incomingRequests
+                        .filter(r => r.status === 'Pending' && (r.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) || r.requesterName.toLowerCase().includes(searchQuery.toLowerCase())))
+                        .map(req => (
                             <div key={req.id} className="bg-white p-5 rounded-2xl border border-red-100 shadow-sm flex flex-col sm:flex-row gap-4 ring-1 ring-red-50">
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center mb-2">
@@ -595,10 +633,12 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                         Active Rentals
                     </h3>
                     <div className="space-y-4">
-                        {incomingRequests.filter(r => r.status === 'Approved').length === 0 && (
+                        {incomingRequests.filter(r => r.status === 'Approved' && (r.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) || r.requesterName.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
                             <p className="text-gray-400 italic bg-white p-6 rounded-2xl border border-dashed text-center text-sm">No active rentals currently.</p>
                         )}
-                        {incomingRequests.filter(r => r.status === 'Approved').map(req => (
+                        {incomingRequests
+                        .filter(r => r.status === 'Approved' && (r.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) || r.requesterName.toLowerCase().includes(searchQuery.toLowerCase())))
+                        .map(req => (
                             <div key={req.id} className="bg-white p-5 rounded-2xl border border-green-100 shadow-sm flex flex-col sm:flex-row gap-4">
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center mb-2">
@@ -623,10 +663,12 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                         Booking History
                     </h3>
                     <div className="space-y-3 opacity-80 hover:opacity-100 transition-opacity">
-                        {incomingRequests.filter(r => ['Completed', 'Rejected'].includes(r.status)).length === 0 && (
+                        {incomingRequests.filter(r => ['Completed', 'Rejected'].includes(r.status) && (r.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) || r.requesterName.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
                             <p className="text-gray-400 italic bg-white p-6 rounded-2xl border border-dashed text-center text-sm">No history available.</p>
                         )}
-                        {incomingRequests.filter(r => ['Completed', 'Rejected'].includes(r.status)).map(req => (
+                        {incomingRequests
+                        .filter(r => ['Completed', 'Rejected'].includes(r.status) && (r.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()) || r.requesterName.toLowerCase().includes(searchQuery.toLowerCase())))
+                        .map(req => (
                             <div key={req.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center">
                                 <div>
                                     <h4 className="font-bold text-slate-700 text-sm">{req.equipmentName}</h4>
@@ -647,7 +689,9 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                     My Inventory
                 </h3>
                 <div className="space-y-4 sticky top-32">
-                  {myItems.map(item => {
+                  {myItems
+                  .filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map(item => {
                     const myItemRating = getItemRating(item.id, item.ownerEmail);
                     return (
                     <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:shadow-lg transition">
@@ -662,7 +706,7 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                             <p className="text-xs text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded">₹{item.price}</p>
                             {myItemRating && (
                                 <span className="text-[10px] bg-yellow-50 text-yellow-600 px-1.5 rounded-md flex items-center gap-0.5 font-bold border border-yellow-100">
-                                    <Star size={8} className="fill-yellow-600"/> {myItemRating.avg}
+                                    <Star size={8} className="fill-yellow-600"/> {myItemRating.avg} ({myItemRating.count})
                                 </span>
                             )}
                         </div>
@@ -677,6 +721,7 @@ const EquipmentMarketplace = ({ adminOverride = false }) => {
                 </div>
               </div>
             </div>
+            </>
           )}
         </div>
       )}
