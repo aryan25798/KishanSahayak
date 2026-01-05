@@ -8,7 +8,7 @@ import {
 } from "firebase/firestore"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom"; // ✅ Added useSearchParams
 import { 
   Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
   Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
@@ -24,7 +24,16 @@ import { formatTime } from "../utils/formatTime"; // ✅ Imported utility
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("products");
+  const [searchParams, setSearchParams] = useSearchParams(); // ✅ Hook for URL Params
+
+  // ✅ Derive activeTab from URL (Defaults to "products" if empty)
+  const activeTab = searchParams.get("tab") || "products";
+
+  // ✅ Function to update URL when tab changes (Persists on Refresh)
+  const setActiveTab = (tab) => {
+    setSearchParams({ tab });
+  };
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null); 
 
@@ -1362,7 +1371,7 @@ const AdminDashboard = () => {
                                onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
                                className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
                                title="Chat with Farmer"
-                           >
+                            >
                                <MessageCircle size={18} />
                            </button>
                          </div>
