@@ -18,7 +18,7 @@ import {
   Tractor,
   LifeBuoy,
   ChevronRight,
-  ShieldCheck // Added ShieldCheck for Admin Icon
+  ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import GoogleTranslate from "./GoogleTranslate"; 
@@ -49,11 +49,10 @@ const Navbar = () => {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY;
         
-        // Hide if scrolling down AND not at the top AND mobile menu is closed
-        if (currentScrollY > lastScrollY && currentScrollY > 100 && !isMobileMenuOpen) {
+        // Hide on scroll down, show on scroll up
+        if (currentScrollY > lastScrollY && currentScrollY > 50 && !isMobileMenuOpen) {
           setIsVisible(false);
         } else {
-          // Show if scrolling up
           setIsVisible(true);
         }
         setLastScrollY(currentScrollY);
@@ -125,18 +124,16 @@ const Navbar = () => {
           equipment: "/equipment", tractor: "/equipment",
           home: "/", dashboard: "/",
           farm: "/my-farm", profile: "/my-farm",
-          admin: "/admin" // Admin voice command
+          admin: "/admin"
         };
 
         let found = false;
         for (const [key, path] of Object.entries(routes)) {
           if (command.includes(key)) {
-            // Security check for voice navigation
             if (path === "/admin" && !isAdmin) {
                 toast.error("Access Denied: Admins Only");
                 return;
             }
-
             navigate(path);
             toast.success(`Navigating to ${key.charAt(0).toUpperCase() + key.slice(1)}`);
             found = true;
@@ -173,41 +170,57 @@ const Navbar = () => {
     { name: "Doctor", path: "/doctor", icon: Stethoscope },
   ];
 
-  // Dynamically add Admin link if user is admin
   if (isAdmin) {
     navLinks.push({ name: "Admin", path: "/admin", icon: ShieldCheck });
   }
 
+  // Animation variants for mobile menu
+  const menuVariants = {
+    closed: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
+    open: { opacity: 1, scale: 1, transition: { duration: 0.3, staggerChildren: 0.1, delayChildren: 0.2 } }
+  };
+
+  const itemVariants = {
+    closed: { opacity: 0, y: 20 },
+    open: { opacity: 1, y: 0 }
+  };
+
   return (
     <>
-      {/* --- NAVBAR CONTAINER --- */}
-      <nav 
-        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-500 ease-in-out transform ${
-          isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-        }`}
+      {/* --- FLOATING NAVBAR --- */}
+      <motion.nav 
+        initial={{ y: -100 }}
+        animate={{ y: isVisible ? 0 : -100 }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 px-4 pointer-events-none"
       >
-        {/* Glassmorphism Background Layer */}
-        <div className={`absolute inset-0 bg-white/70 backdrop-blur-xl border-b border-white/40 shadow-sm transition-all duration-300 ${lastScrollY > 20 ? "shadow-md bg-white/80" : ""}`}></div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="flex justify-between items-center h-16 md:h-20">
+        <div className="pointer-events-auto w-full max-w-7xl">
+          <div className={`
+            relative flex items-center justify-between 
+            mx-auto transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
+            ${lastScrollY > 20 
+              ? "bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg shadow-emerald-900/5 py-3 px-5 rounded-[2rem] md:w-[90%] lg:w-[85%]" 
+              : "bg-transparent py-5 px-6 w-full"
+            }
+          `}>
             
-            {/* --- LOGO SECTION --- */}
+            {/* LOGO */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-gradient-to-tr from-emerald-600 to-green-400 rounded-xl text-white shadow-lg shadow-green-500/30 group-hover:scale-105 transition-transform duration-300">
-                 {/* Glow behind logo */}
-                 <div className="absolute -inset-1 bg-green-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-300"></div>
-                 <Sprout size={24} className="relative z-10" strokeWidth={2.5} />
+              <div className="relative flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
+                 <div className="absolute inset-0 bg-white/20 rounded-xl blur-sm group-hover:blur-md transition-all"></div>
+                 <Sprout size={20} className="relative z-10" strokeWidth={2.5} />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors">
+                <span className="text-xl font-black tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors">
                   Kisan<span className="text-emerald-600">Sahayak</span>
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">AI Powered Farming</span>
+                {lastScrollY < 20 && (
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-0 animate-fade-in sm:opacity-100">AI Farming</span>
+                )}
               </div>
             </Link>
 
-            {/* --- CENTER LINKS (DESKTOP) --- */}
+            {/* DESKTOP LINKS (FLOATING PILL) */}
             <div className="hidden lg:flex items-center bg-slate-100/50 p-1.5 rounded-full border border-slate-200/60 backdrop-blur-md">
               {navLinks.map((link) => {
                 const isActive = location.pathname === link.path;
@@ -222,14 +235,13 @@ const Navbar = () => {
                     {isActive && (
                       <motion.div
                         layoutId="nav-pill"
-                        className="absolute inset-0 bg-white rounded-full shadow-[0_2px_10px_-2px_rgba(0,0,0,0.1)] border border-slate-100"
+                        className="absolute inset-0 bg-white rounded-full shadow-sm border border-slate-100/50"
                         initial={false}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       />
                     )}
                     <span className="relative z-10 flex items-center gap-2">
-                       {/* Only show icon on active to keep it clean, or hover */}
-                       {isActive && <link.icon size={16} />}
+                       {isActive && <link.icon size={16} className="animate-pulse" />}
                        {link.name}
                     </span>
                   </Link>
@@ -237,51 +249,48 @@ const Navbar = () => {
               })}
             </div>
 
-            {/* --- RIGHT ACTIONS --- */}
+            {/* RIGHT ACTIONS */}
             <div className="flex items-center gap-2 md:gap-3">
               
-              {/* Voice Button (Animated) */}
+              {/* Voice Button */}
               {voiceSupported && (
                 <button 
                   onClick={handleVoiceNav}
-                  className={`relative p-2.5 rounded-full transition-all duration-300 group ${
+                  className={`relative p-3 rounded-full transition-all duration-300 group overflow-hidden ${
                     isListening 
-                      ? "bg-red-50 text-red-600 shadow-lg shadow-red-100 ring-2 ring-red-100" 
-                      : "bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-100"
+                      ? "bg-red-50 text-red-600 ring-2 ring-red-100 shadow-red-200 shadow-lg" 
+                      : "bg-white/50 hover:bg-white text-slate-500 hover:text-emerald-600 border border-white/60 shadow-sm"
                   }`}
-                  title="Voice Command"
                 >
-                  {isListening && <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-20"></span>}
+                  {isListening && <span className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></span>}
                   {isListening ? <MicOff size={20} /> : <Mic size={20} />}
                 </button>
               )}
 
               {/* Language Selector */}
-              <div className="hidden md:block scale-90">
+              <div className="hidden md:block scale-90 opacity-80 hover:opacity-100 transition-opacity">
                  <GoogleTranslate />
               </div>
 
               {/* User Profile */}
               {user ? (
-                <div className="flex items-center gap-3 pl-2">
-                   {/* Desktop Profile Pill */}
-                   <Link to="/my-farm" className="hidden md:flex items-center gap-3 pr-4 pl-1 py-1 bg-white border border-slate-200 rounded-full hover:border-emerald-300 hover:shadow-md transition-all group">
-                      <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200">
-                        <User size={18} />
+                <div className="flex items-center gap-2">
+                   <Link to="/my-farm" className="hidden md:flex items-center gap-3 pl-1 pr-4 py-1 bg-white/50 hover:bg-white border border-white/60 hover:border-emerald-200 rounded-full shadow-sm hover:shadow-md transition-all group backdrop-blur-sm">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-green-50 flex items-center justify-center text-emerald-700 border border-emerald-200/50">
+                        <User size={16} />
                       </div>
-                      <div className="text-left">
+                      <div className="text-left hidden lg:block">
                          <p className="text-xs font-bold text-slate-800 leading-tight">{user.displayName?.split(" ")[0] || "Farmer"}</p>
-                         <p className="text-[9px] text-slate-400 font-bold uppercase">{userData?.role || "Member"}</p>
                       </div>
                    </Link>
 
-                   {/* Mobile Profile Icon */}
-                   <Link to="/my-farm" className="md:hidden w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                   {/* Mobile Profile */}
+                   <Link to="/my-farm" className="md:hidden w-10 h-10 rounded-full bg-white border border-slate-200 text-emerald-600 flex items-center justify-center shadow-sm">
                      <User size={20} />
                    </Link>
 
-                   {/* Logout Button */}
-                   <button onClick={handleLogout} className="hidden md:flex p-2.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                   {/* Logout */}
+                   <button onClick={handleLogout} className="hidden md:flex p-2.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50/50 transition-colors">
                      <LogOut size={20} />
                    </button>
                 </div>
@@ -294,78 +303,83 @@ const Navbar = () => {
               {/* Mobile Menu Toggle */}
               <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2.5 text-slate-700 bg-white border border-slate-100 rounded-xl shadow-sm active:scale-95 transition-all"
+                className="lg:hidden p-3 text-slate-700 bg-white/80 border border-white/60 backdrop-blur-md rounded-2xl shadow-sm active:scale-95 transition-all hover:bg-white hover:shadow-md"
               >
                  {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
-      {/* --- MOBILE MENU OVERLAY (Slide Down) --- */}
+      {/* --- CINEMATIC MOBILE MENU --- */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-white/95 backdrop-blur-xl pt-24 px-6 md:hidden overflow-y-auto"
+            initial="closed"
+            animate="open"
+            exit="closed"
+            variants={menuVariants}
+            className="fixed inset-0 z-40 bg-slate-50/95 backdrop-blur-3xl pt-28 px-6 lg:hidden overflow-y-auto"
           >
-             <div className="flex flex-col space-y-2 pb-10">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Navigation</p>
+             <div className="flex flex-col space-y-2 pb-10 max-w-lg mx-auto">
+                <motion.p variants={itemVariants} className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-6 px-2">
+                  Menu
+                </motion.p>
                 
-                {navLinks.map((link, idx) => (
-                  <motion.div
-                    key={link.name}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                  >
+                {navLinks.map((link) => (
+                  <motion.div key={link.name} variants={itemVariants}>
                     <Link 
                       to={link.path} 
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
+                      className={`group flex items-center justify-between p-4 rounded-3xl transition-all border ${
                          location.pathname === link.path 
-                         ? "bg-emerald-50 border border-emerald-100 text-emerald-800" 
-                         : "bg-slate-50 border border-slate-100 text-slate-600"
+                         ? "bg-white border-emerald-100 shadow-lg shadow-emerald-100/50" 
+                         : "bg-white/40 border-transparent hover:bg-white hover:border-slate-100"
                       }`}
                     >
-                       <div className="flex items-center gap-4">
-                          <div className={`p-2 rounded-xl ${location.pathname === link.path ? "bg-white text-emerald-600" : "bg-white text-slate-400"}`}>
-                             <link.icon size={20} />
+                       <div className="flex items-center gap-5">
+                          <div className={`p-3 rounded-2xl transition-colors ${
+                            location.pathname === link.path 
+                            ? "bg-emerald-50 text-emerald-600" 
+                            : "bg-slate-50 text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600"
+                          }`}>
+                             <link.icon size={24} />
                           </div>
-                          <span className="font-bold text-lg">{link.name}</span>
+                          <span className={`text-xl font-bold ${
+                            location.pathname === link.path ? "text-slate-900" : "text-slate-600"
+                          }`}>
+                            {link.name}
+                          </span>
                        </div>
-                       <ChevronRight size={16} className="opacity-50" />
+                       <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-400 transition-colors" />
                     </Link>
                   </motion.div>
                 ))}
 
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                   <Link to="/equipment" onClick={() => setIsMobileMenuOpen(false)} className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-amber-800 flex flex-col items-center gap-2 text-center">
-                      <Tractor size={24} className="mb-1" />
+                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mt-4">
+                   <Link to="/equipment" onClick={() => setIsMobileMenuOpen(false)} className="p-5 bg-amber-50/80 rounded-3xl border border-amber-100 text-amber-900 flex flex-col items-center gap-2 text-center active:scale-95 transition-transform">
+                      <Tractor size={28} className="mb-1 text-amber-600" />
                       <span className="text-sm font-bold">Equipment</span>
                    </Link>
-                   <Link to="/support" onClick={() => setIsMobileMenuOpen(false)} className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-blue-800 flex flex-col items-center gap-2 text-center">
-                      <LifeBuoy size={24} className="mb-1" />
+                   <Link to="/support" onClick={() => setIsMobileMenuOpen(false)} className="p-5 bg-blue-50/80 rounded-3xl border border-blue-100 text-blue-900 flex flex-col items-center gap-2 text-center active:scale-95 transition-transform">
+                      <LifeBuoy size={28} className="mb-1 text-blue-600" />
                       <span className="text-sm font-bold">Support</span>
                    </Link>
-                </div>
+                </motion.div>
 
-                <div className="mt-8 pt-6 border-t border-slate-100">
-                    <div className="mb-6"><GoogleTranslate /></div>
+                <motion.div variants={itemVariants} className="mt-8 pt-8 border-t border-slate-200/50">
+                    <div className="mb-8 flex justify-center scale-110"><GoogleTranslate /></div>
                     {user ? (
-                      <button onClick={handleLogout} className="w-full py-4 bg-red-50 text-red-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100">
-                        <LogOut size={20} /> Logout
+                      <button onClick={handleLogout} className="w-full py-4 bg-red-50 text-red-600 font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                        <LogOut size={20} /> Sign Out
                       </button>
                     ) : (
-                      <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-200">
-                        Login Now
+                      <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-200 active:scale-95 transition-transform">
+                        Login to Account
                       </Link>
                     )}
-                </div>
+                </motion.div>
              </div>
           </motion.div>
         )}
