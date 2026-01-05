@@ -13,7 +13,7 @@ import {
   Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
   Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
   MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor,
-  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, Calendar, Star // ✅ Added Star
+  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, Calendar, Star, Filter // ✅ Added Star, Filter
 } from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
 import * as XLSX from 'xlsx'; 
@@ -71,7 +71,7 @@ const AdminDashboard = () => {
   const [productImage, setProductImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
-  
+   
   // --- SCHEME FORM STATE ---
   const [schemeTitle, setSchemeTitle] = useState("");
   const [schemeDesc, setSchemeDesc] = useState("");
@@ -104,6 +104,9 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("latest agriculture subsidy india 2026");
   const [webResults, setWebResults] = useState([]);
   const [searching, setSearching] = useState(false);
+
+  // ✅ Global Search State for Modules
+  const [moduleSearch, setModuleSearch] = useState("");
 
   // Environment Variables
   const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_SEARCH_KEY; 
@@ -142,9 +145,10 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Clear selections when tab changes
+  // Clear selections and search when tab changes
   useEffect(() => {
     setSelectedItems(new Set());
+    setModuleSearch(""); // ✅ Reset search on tab change
   }, [activeTab]);
 
   // --- Fetching Functions ---
@@ -232,7 +236,7 @@ const AdminDashboard = () => {
     try {
       const eqSnap = await getDocs(collection(db, "equipment"));
       setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      
+       
       // Fetch Requests
       const reqSnap = await getDocs(query(collection(db, "equipment_requests"), orderBy("timestamp", "desc")));
       setEquipmentRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -303,14 +307,14 @@ const AdminDashboard = () => {
                 } else if (type === "market") {
                     await addDoc(collection(db, "market_prices"), {
                         crop: row.crop || "Crop",
-                        variety: row.variety || "Standard",       
+                        variety: row.variety || "Standard",        
                         market: row.market || "Mandi",
-                        district: row.district || "",             
-                        state: row.state || "",                   
+                        district: row.district || "",              
+                        state: row.state || "",                    
                         price: row.price ? `₹${row.price}/qt` : "₹0/qt",
                         min_price: row.min_price ? `₹${row.min_price}/qt` : "", 
                         max_price: row.max_price ? `₹${row.max_price}/qt` : "", 
-                        date: row.date || new Date().toLocaleDateString(),      
+                        date: row.date || new Date().toLocaleDateString(),       
                         change: row.change || "stable",
                         imageUrl: row.imageUrl || null, 
                         timestamp: new Date()
@@ -371,7 +375,7 @@ const AdminDashboard = () => {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Applications");
-    
+     
     XLSX.writeFile(workbook, "Scheme_Applications_Report.xlsx");
     showToast("Report Downloaded!");
   };
@@ -716,12 +720,31 @@ const AdminDashboard = () => {
 
   // --- Render Sections ---
 
-  const renderProducts = () => (
+  const renderProducts = () => {
+    // ✅ Filter Products Logic
+    const filteredProducts = products.filter(p => 
+        p.name.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        p.id.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    return (
     <div className="animate-fade-up">
       <div className="flex justify-between items-center mb-6">
          <h2 className="text-3xl font-bold text-gray-800">Verified Products</h2>
          
          <div className="flex gap-2">
+           {/* ✅ Search Input for Products */}
+           <div className="relative">
+              <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search products..." 
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+              />
+           </div>
+
            {selectedItems.size > 0 && (
               <button 
                   onClick={() => handleBulkDelete("products")}
@@ -729,7 +752,7 @@ const AdminDashboard = () => {
                   className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
               >
                   {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                  Delete Selected ({selectedItems.size})
+                  Delete ({selectedItems.size})
               </button>
            )}
            
@@ -738,7 +761,7 @@ const AdminDashboard = () => {
               className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
               title="Delete ALL products in database"
            >
-              <AlertTriangle size={18} /> Wipe All Data
+              <AlertTriangle size={18} /> Wipe All
            </button>
 
            <div>
@@ -785,8 +808,8 @@ const AdminDashboard = () => {
              <thead className="bg-gray-50 border-b sticky top-0 z-10">
                <tr>
                  <th className="p-4 w-12">
-                   <button onClick={() => toggleSelectAll(products)} className="text-gray-500 hover:text-gray-700">
-                     {products.length > 0 && products.every(p => selectedItems.has(p.id)) ? <CheckSquare size={20} /> : <Square size={20} />}
+                   <button onClick={() => toggleSelectAll(filteredProducts)} className="text-gray-500 hover:text-gray-700">
+                     {filteredProducts.length > 0 && filteredProducts.every(p => selectedItems.has(p.id)) ? <CheckSquare size={20} /> : <Square size={20} />}
                    </button>
                  </th>
                  <th className="p-4">Img</th>
@@ -796,7 +819,7 @@ const AdminDashboard = () => {
                </tr>
              </thead>
              <tbody>
-               {products.map(p => (
+               {filteredProducts.map(p => (
                  <tr key={p.id} className={`border-b items-center transition-colors ${selectedItems.has(p.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                      <td className="p-4">
                        <button onClick={() => toggleSelection(p.id)} className="text-gray-500 hover:text-blue-600">
@@ -817,10 +840,11 @@ const AdminDashboard = () => {
                      <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 size={18}/></button></td>
                  </tr>
                ))}
+               {filteredProducts.length === 0 && <tr><td colSpan="5" className="p-6 text-center text-gray-400">No products found.</td></tr>}
              </tbody>
            </table>
          </div>
-         {hasMoreProducts && (
+         {hasMoreProducts && !moduleSearch && (
             <div className="p-4 border-t flex justify-center">
                <button onClick={() => fetchProducts(true)} disabled={loading} className="text-green-600 font-bold hover:text-green-700 disabled:opacity-50 text-sm flex items-center gap-2">
                   {loading ? <Loader className="animate-spin" size={16}/> : "Load More Products"}
@@ -830,13 +854,33 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
+  };
 
-  const renderSchemes = () => (
+  const renderSchemes = () => {
+    // ✅ Filter Schemes Logic
+    const filteredSchemes = schemes.filter(s => 
+        s.title.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        s.category.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    return (
     <div className="animate-fade-up">
       <div className="flex justify-between items-center mb-6">
          <h2 className="text-3xl font-bold text-gray-800">Manage Schemes</h2>
          
          <div className="flex gap-2">
+            {/* ✅ Search Input for Schemes */}
+            <div className="relative">
+                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Search active schemes..." 
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                />
+            </div>
+
             {selectedItems.size > 0 && (
                 <button 
                     onClick={() => handleBulkDelete("schemes")}
@@ -923,14 +967,15 @@ const AdminDashboard = () => {
       </div>
 
       <div className="flex justify-between items-center mb-4 px-2">
-         <button onClick={() => toggleSelectAll(schemes)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
-            {schemes.length > 0 && schemes.every(s => selectedItems.has(s.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+         <button onClick={() => toggleSelectAll(filteredSchemes)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+            {filteredSchemes.length > 0 && filteredSchemes.every(s => selectedItems.has(s.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
             Select All on Page
          </button>
       </div>
 
       <div className="grid gap-4">
-        {schemes.map(s => (
+        {filteredSchemes.length === 0 ? <p className="text-center text-gray-400 py-4">No schemes match your search.</p> :
+        filteredSchemes.map(s => (
           <div key={s.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-start transition ${selectedItems.has(s.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
             <div className="flex gap-4">
               <button onClick={() => toggleSelection(s.id)} className="text-gray-400 hover:text-blue-600 mt-1">
@@ -949,12 +994,69 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
+  };
 
-  const renderApplications = () => (
+  const renderApplications = () => {
+    // ✅ Filter Applications Logic
+    const filteredApps = applications.filter(app => 
+        app.applicantName.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        app.schemeTitle.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    // ✅ Split into Pending and History
+    const pendingApps = filteredApps.filter(app => app.status === "Pending");
+    const historyApps = filteredApps.filter(app => app.status !== "Pending");
+
+    const AppCard = ({ app }) => (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                <h3 className="text-xl font-bold text-gray-800">{app.applicantName}</h3>
+                <p className="text-gray-500 text-sm flex items-center gap-1"><Mail size={12}/> {app.applicantEmail}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                app.status === "Pending" ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
+                app.status === "Accepted" ? "bg-green-50 text-green-700 border-green-100" :
+                "bg-red-50 text-red-700 border-red-100"
+                }`}>
+                {app.status}
+                </span>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-end">
+                <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-3 text-sm text-gray-600 border border-gray-100 w-full sm:w-auto">
+                <MapPin size={18} className="text-red-500 shrink-0"/>
+                <div>
+                    <span className="font-bold block text-gray-800">Scheme: {app.schemeTitle}</span>
+                    Lat: {app.location?.lat.toFixed(4)}, Lng: {app.location?.lng.toFixed(4)}
+                    <a href={`https://maps.google.com/?q=${app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">View Map</a>
+                </div>
+                </div>
+                {app.status === "Pending" && (
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <button onClick={() => handleUpdateApplicationStatus(app.id, "Accepted")} className="flex-1 sm:flex-none bg-green-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition shadow-sm"><CheckCircle size={18}/> Accept</button>
+                    <button onClick={() => handleUpdateApplicationStatus(app.id, "Rejected")} className="flex-1 sm:flex-none bg-white text-red-600 border border-red-200 px-5 py-2 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2 transition"><XCircle size={18}/> Reject</button>
+                </div>
+                )}
+            </div>
+        </div>
+    );
+
+    return (
     <div className="animate-fade-up">
       <div className="flex justify-between items-center mb-6">
          <h2 className="text-3xl font-bold text-gray-800">Scheme Applications</h2>
          <div className="flex gap-2">
+             {/* ✅ Search Input for Applications */}
+             <div className="relative">
+                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Search applications..." 
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                />
+             </div>
              <button 
                 onClick={() => handleWipeCollection("applications")}
                 className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
@@ -970,47 +1072,39 @@ const AdminDashboard = () => {
          </div>
       </div>
 
-      <div className="grid gap-4">
-        {applications.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">No applications pending.</p> : applications.map(app => (
-          <div key={app.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-xl font-bold text-gray-800">{app.applicantName}</h3>
-                <p className="text-gray-500 text-sm flex items-center gap-1"><Mail size={12}/> {app.applicantEmail}</p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
-                app.status === "Pending" ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
-                app.status === "Accepted" ? "bg-green-50 text-green-700 border-green-100" :
-                "bg-red-50 text-red-700 border-red-100"
-              }`}>
-                {app.status}
-              </span>
+      <div className="space-y-8">
+        {/* Pending Section */}
+        <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Clock className="text-orange-500"/> Pending Applications ({pendingApps.length})</h3>
+            <div className="grid gap-4">
+                {pendingApps.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">No pending applications found.</p> : 
+                pendingApps.map(app => <AppCard key={app.id} app={app} />)}
             </div>
-            <div className="flex flex-col sm:flex-row justify-between gap-4 items-end">
-              <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-3 text-sm text-gray-600 border border-gray-100 w-full sm:w-auto">
-                <MapPin size={18} className="text-red-500 shrink-0"/>
-                <div>
-                  <span className="font-bold block text-gray-800">Scheme: {app.schemeTitle}</span>
-                  Lat: {app.location?.lat.toFixed(4)}, Lng: {app.location?.lng.toFixed(4)}
-                  <a href={`https://maps.google.com/?q=${app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">View Map</a>
-                </div>
-              </div>
-              {app.status === "Pending" && (
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button onClick={() => handleUpdateApplicationStatus(app.id, "Accepted")} className="flex-1 sm:flex-none bg-green-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition shadow-sm"><CheckCircle size={18}/> Accept</button>
-                  <button onClick={() => handleUpdateApplicationStatus(app.id, "Rejected")} className="flex-1 sm:flex-none bg-white text-red-600 border border-red-200 px-5 py-2 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2 transition"><XCircle size={18}/> Reject</button>
-                </div>
-              )}
+        </div>
+
+        {/* History Section ✅ */}
+        <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><History className="text-blue-500"/> Application History ({historyApps.length})</h3>
+            <div className="grid gap-4 opacity-80 hover:opacity-100 transition-opacity">
+                {historyApps.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">No history yet.</p> : 
+                historyApps.map(app => <AppCard key={app.id} app={app} />)}
             </div>
-          </div>
-        ))}
+        </div>
       </div>
     </div>
   );
+  };
 
   const renderComplaints = () => {
-    const pendingComplaints = complaints.filter(c => c.status === "Pending");
-    const resolvedComplaints = complaints.filter(c => c.status === "Resolved");
+    // ✅ Filter Complaints Logic
+    const filteredComplaints = complaints.filter(c => 
+        c.subject.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        c.farmerName?.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        c.message.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    const pendingComplaints = filteredComplaints.filter(c => c.status === "Pending");
+    const resolvedComplaints = filteredComplaints.filter(c => c.status === "Resolved");
 
     const ComplaintCard = ({ c }) => (
         <div key={c.id} className={`bg-white p-6 rounded-2xl shadow-sm border flex flex-col gap-4 transition group relative ${selectedItems.has(c.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
@@ -1100,6 +1194,18 @@ const AdminDashboard = () => {
                         <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">{pendingComplaints.length}</span>
                     </h2>
                     <div className="flex gap-2">
+                        {/* ✅ Search Input for Complaints */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                            <input 
+                                type="text" 
+                                placeholder="Search complaints..." 
+                                value={moduleSearch}
+                                onChange={(e) => setModuleSearch(e.target.value)}
+                                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                            />
+                        </div>
+
                         {selectedItems.size > 0 && (
                             <button 
                                 onClick={() => handleBulkDelete("complaints")}
@@ -1162,8 +1268,21 @@ const AdminDashboard = () => {
 
   // --- 🆕 RENDER EQUIPMENT SECTION ---
   const renderEquipment = () => {
-    const pendingRequests = equipmentRequests.filter(r => r.status === 'Pending');
-    const activeRentals = equipmentRequests.filter(r => r.status === 'Approved');
+    // ✅ Filter Equipment Logic
+    const filteredEquipment = equipmentList.filter(e => 
+        e.name.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        e.type.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    const filteredRequests = equipmentRequests.filter(r => 
+        r.equipmentName?.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        r.requesterName?.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    const pendingRequests = filteredRequests.filter(r => r.status === 'Pending');
+    const activeRentals = filteredRequests.filter(r => r.status === 'Approved');
+    // ✅ History List (Completed/Rejected)
+    const historyRentals = filteredRequests.filter(r => r.status === 'Completed' || r.status === 'Rejected');
 
     return (
     <div className="animate-fade-up">
@@ -1171,6 +1290,18 @@ const AdminDashboard = () => {
          <h2 className="text-3xl font-bold text-gray-800">Equipment Listings</h2>
          
          <div className="flex gap-2">
+           {/* ✅ Search Input for Equipment */}
+           <div className="relative">
+                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Search equipment & requests..." 
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                />
+            </div>
+
             {selectedItems.size > 0 && (
                 <button 
                     onClick={() => handleBulkDelete("equipment")}
@@ -1220,20 +1351,20 @@ const AdminDashboard = () => {
                    pendingRequests.map(req => (
                      <div key={req.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-3">
                          <div className="flex justify-between items-start">
-                            <div>
-                                <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
-                                <p className="text-xs text-gray-500">Requested by: <span className="font-bold">{req.requesterName}</span></p>
-                                <p className="text-xs text-gray-500">{req.requesterEmail}</p>
-                                <p className="text-xs text-orange-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
-                            </div>
-                            {/* Chat Button - ✅ NOW USES equipment ID and type */}
-                            <button 
-                                onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
-                                className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
-                                title="Chat with Farmer"
-                            >
-                                <MessageCircle size={18} />
-                            </button>
+                           <div>
+                               <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                               <p className="text-xs text-gray-500">Requested by: <span className="font-bold">{req.requesterName}</span></p>
+                               <p className="text-xs text-gray-500">{req.requesterEmail}</p>
+                               <p className="text-xs text-orange-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                           </div>
+                           {/* Chat Button - ✅ NOW USES equipment ID and type */}
+                           <button 
+                               onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
+                               className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
+                               title="Chat with Farmer"
+                           >
+                               <MessageCircle size={18} />
+                           </button>
                          </div>
                          <div className="flex gap-2 mt-1">
                              <button onClick={() => handleRequestAction(req, "Approved")} className="flex-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-200">Approve</button>
@@ -1254,13 +1385,13 @@ const AdminDashboard = () => {
                      return (
                      <div key={req.id} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex flex-col gap-3">
                          <div className="flex justify-between items-start">
-                            <div>
-                                <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
-                                <p className="text-xs text-gray-500">Rented by: <span className="font-bold">{req.requesterName}</span></p>
-                                <p className="text-xs text-green-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
-                            </div>
-                             {/* Chat Button - ✅ NOW USES equipment ID and type */}
-                             <button 
+                           <div>
+                               <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                               <p className="text-xs text-gray-500">Rented by: <span className="font-bold">{req.requesterName}</span></p>
+                               <p className="text-xs text-green-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                           </div>
+                            {/* Chat Button - ✅ NOW USES equipment ID and type */}
+                            <button 
                                 onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
                                 className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
                                 title="Chat with Farmer"
@@ -1285,6 +1416,24 @@ const AdminDashboard = () => {
                    );
                  })}
              </div>
+        </div>
+      </div>
+
+      {/* ✅ Rental History Section */}
+      <div className="mb-12">
+        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><History className="text-gray-500"/> Rental History ({historyRentals.length})</h3>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-75 hover:opacity-100 transition-opacity">
+            {historyRentals.map(req => (
+                <div key={req.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-2">
+                    <div className="flex justify-between">
+                        <h4 className="font-bold text-gray-700 text-sm">{req.equipmentName}</h4>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${req.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{req.status}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">Renter: {req.requesterName}</p>
+                    <p className="text-xs text-gray-400">{req.startDate} - {req.endDate}</p>
+                </div>
+            ))}
+            {historyRentals.length === 0 && <p className="col-span-full text-gray-400 italic">No past rental history.</p>}
         </div>
       </div>
 
@@ -1318,7 +1467,7 @@ const AdminDashboard = () => {
 
       <h3 className="text-lg font-bold mb-4">Your Inventory</h3>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-         {equipmentList.map(item => (
+         {filteredEquipment.map(item => (
             <div key={item.id} className={`bg-white p-4 rounded-2xl shadow-sm border transition flex flex-col relative ${selectedItems.has(item.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
                 <button onClick={() => toggleSelection(item.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10 p-2 bg-white/80 rounded-full">
                     {selectedItems.has(item.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
@@ -1344,7 +1493,7 @@ const AdminDashboard = () => {
                 </div>
             </div>
          ))}
-         {equipmentList.length === 0 && <p className="col-span-full text-center py-10 text-gray-400">No equipment found.</p>}
+         {filteredEquipment.length === 0 && <p className="col-span-full text-center py-10 text-gray-400">No equipment found matching search.</p>}
       </div>
 
       {/* ✅ Review Modal */}
@@ -1369,7 +1518,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans pt-16">
-      
+       
       {notification && (
         <div className={`fixed top-24 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'error' ? 'bg-red-50 border border-red-100 text-red-700' : 'bg-white border border-green-100 text-green-700'}`}>
           {notification.type === 'error' ? <AlertCircle size={20}/> : <CheckCircle size={20}/>}
@@ -1451,6 +1600,17 @@ const AdminDashboard = () => {
                <div className="flex justify-between items-center mb-6">
                  <h2 className="text-3xl font-bold text-gray-800">Registered Farmers</h2>
                  <div className="flex gap-2">
+                    {/* ✅ Search Input for Farmers */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search farmers..." 
+                            value={moduleSearch}
+                            onChange={(e) => setModuleSearch(e.target.value)}
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                        />
+                    </div>
                     {selectedItems.size > 0 && (
                         <button 
                             onClick={() => handleBulkDelete("users")}
@@ -1477,7 +1637,7 @@ const AdminDashboard = () => {
                         <thead className="bg-gray-50 border-b">
                             <tr>
                                 <th className="p-4 w-12">
-                                    <button onClick={() => toggleSelectAll(farmers)} className="text-gray-500 hover:text-gray-700">
+                                    <button onClick={() => toggleSelectAll(farmers.filter(f => f.name?.toLowerCase().includes(moduleSearch.toLowerCase()) || f.email?.toLowerCase().includes(moduleSearch.toLowerCase())))} className="text-gray-500 hover:text-gray-700">
                                         {farmers.length > 0 && farmers.every(f => selectedItems.has(f.id)) ? <CheckSquare size={20} /> : <Square size={20} />}
                                     </button>
                                 </th>
@@ -1487,7 +1647,10 @@ const AdminDashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                          {farmers.map(f => (
+                          {/* ✅ Filter Farmers */}
+                          {farmers
+                          .filter(f => f.name?.toLowerCase().includes(moduleSearch.toLowerCase()) || f.email?.toLowerCase().includes(moduleSearch.toLowerCase()))
+                          .map(f => (
                             <tr key={f.id} className={`border-b transition-colors ${selectedItems.has(f.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                 <td className="p-4">
                                     <button onClick={() => toggleSelection(f.id)} className="text-gray-500 hover:text-blue-600">
@@ -1522,6 +1685,17 @@ const AdminDashboard = () => {
                  <h2 className="text-3xl font-bold text-gray-800">Manage Market Prices</h2>
                  
                  <div className="flex gap-2">
+                    {/* ✅ Search Input for Market */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search market..." 
+                            value={moduleSearch}
+                            onChange={(e) => setModuleSearch(e.target.value)}
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                        />
+                    </div>
                     {selectedItems.size > 0 && (
                         <button 
                             onClick={() => handleBulkDelete("market_prices")}
@@ -1591,14 +1765,17 @@ const AdminDashboard = () => {
               </div>
               
               <div className="flex justify-between items-center mb-4 px-2">
-                 <button onClick={() => toggleSelectAll(marketPrices)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                 <button onClick={() => toggleSelectAll(marketPrices.filter(m => m.crop.toLowerCase().includes(moduleSearch.toLowerCase()) || m.market.toLowerCase().includes(moduleSearch.toLowerCase())))} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
                     {marketPrices.length > 0 && marketPrices.every(m => selectedItems.has(m.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
                     Select All on Page
                  </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {marketPrices.map(m => (
+                {/* ✅ Filter Market */}
+                {marketPrices
+                .filter(m => m.crop.toLowerCase().includes(moduleSearch.toLowerCase()) || m.market.toLowerCase().includes(moduleSearch.toLowerCase()))
+                .map(m => (
                   <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
                       
@@ -1636,6 +1813,17 @@ const AdminDashboard = () => {
              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-3xl font-bold text-gray-800">Community Moderation</h2>
                 <div className="flex gap-2">
+                    {/* ✅ Search Input for Forum */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search posts..." 
+                            value={moduleSearch}
+                            onChange={(e) => setModuleSearch(e.target.value)}
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                        />
+                    </div>
                     {selectedItems.size > 0 && (
                         <button 
                             onClick={() => handleBulkDelete("forum_posts")}
@@ -1657,14 +1845,17 @@ const AdminDashboard = () => {
              </div>
 
              <div className="flex justify-between items-center mb-4 px-2">
-                 <button onClick={() => toggleSelectAll(forumPosts)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                 <button onClick={() => toggleSelectAll(forumPosts.filter(p => p.text.toLowerCase().includes(moduleSearch.toLowerCase()) || p.authorName?.toLowerCase().includes(moduleSearch.toLowerCase())))} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
                     {forumPosts.length > 0 && forumPosts.every(p => selectedItems.has(p.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
                     Select All on Page
                  </button>
              </div>
 
              <div className="space-y-4">
-                {forumPosts.map(post => (
+                {/* ✅ Filter Forum Posts */}
+                {forumPosts
+                .filter(p => p.text.toLowerCase().includes(moduleSearch.toLowerCase()) || p.authorName?.toLowerCase().includes(moduleSearch.toLowerCase()))
+                .map(post => (
                    <div key={post.id} className={`bg-white p-6 rounded-2xl shadow-sm border flex flex-col md:flex-row justify-between items-start gap-4 transition ${selectedItems.has(post.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
                        <div className="flex items-center self-start md:self-center mr-2">
                            <button onClick={() => toggleSelection(post.id)} className="text-gray-400 hover:text-blue-600">
