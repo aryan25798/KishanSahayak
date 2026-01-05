@@ -19,6 +19,7 @@ import emailjs from "@emailjs/browser";
 import * as XLSX from 'xlsx'; 
 import ChatInterface from "./ChatInterface";
 import EquipmentChat from "./EquipmentChat"; 
+import { formatTime } from "../utils/formatTime"; // ✅ Imported utility
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -152,10 +153,11 @@ const AdminDashboard = () => {
     try {
       const productsRef = collection(db, "products");
       let q;
+      // ✅ Changed: Order by verificationDate desc (Newest First)
       if (isNextPage && lastProductDoc) {
-        q = query(productsRef, limit(PRODUCTS_PER_PAGE), startAfter(lastProductDoc));
+        q = query(productsRef, orderBy("verificationDate", "desc"), limit(PRODUCTS_PER_PAGE), startAfter(lastProductDoc));
       } else {
-        q = query(productsRef, limit(PRODUCTS_PER_PAGE));
+        q = query(productsRef, orderBy("verificationDate", "desc"), limit(PRODUCTS_PER_PAGE));
       }
       const snapshot = await getDocs(q);
       const newProducts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -189,7 +191,9 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const cSnap = await getDocs(collection(db, "complaints"));
-      setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // ✅ Changed: Sort client-side by timestamp descending
+      setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -207,7 +211,9 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const marketSnap = await getDocs(collection(db, "market_prices"));
-      setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // ✅ Changed: Sort client-side by timestamp descending
+      setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -799,7 +805,15 @@ const AdminDashboard = () => {
                      </td>
                      <td className="p-4">{p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover rounded-lg border" />}</td>
                      <td className="p-4 font-mono text-blue-600 font-bold">{p.id}</td>
-                     <td className="p-4 font-medium">{p.name}</td>
+                     {/* ✅ Updated Product Name Cell with Date */}
+                     <td className="p-4">
+                        <div className="flex flex-col">
+                            <span className="font-medium">{p.name}</span>
+                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock size={10}/> {formatTime(p.verificationDate)}
+                            </span>
+                        </div>
+                     </td>
                      <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 size={18}/></button></td>
                  </tr>
                ))}
@@ -1018,6 +1032,10 @@ const AdminDashboard = () => {
                     <div className="flex items-center gap-3 mb-2">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status==="Resolved"?"bg-green-50 border-green-100 text-green-700":"bg-yellow-50 border-yellow-100 text-yellow-700"}`}>{c.status}</span>
                         <h4 className="font-bold text-lg text-gray-800">{c.subject}</h4>
+                        {/* ✅ Formatted Date Added */}
+                        <span className="text-[10px] text-gray-400 font-medium ml-auto flex items-center gap-1">
+                            <Clock size={10}/> {formatTime(c.timestamp)}
+                        </span>
                     </div>
                     <p className="text-gray-700 text-sm mb-3 bg-gray-50 p-3 rounded-lg border border-gray-100">"{c.message}"</p>
                     <div className="flex gap-4 text-xs text-gray-400 items-center">
@@ -1598,6 +1616,10 @@ const AdminDashboard = () => {
 
                       <div className="text-right">
                         <p className="font-bold text-lg text-green-600">{m.price}</p>
+                        {/* ✅ Formatted Date Added */}
+                        <p className="text-[10px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                            <Clock size={10}/> {formatTime(m.timestamp)}
+                        </p>
                         <div className="flex gap-2 justify-end mt-1">
                           <button onClick={() => startEditPrice(m)} className="text-gray-400 hover:text-blue-500 transition"><Edit2 size={16}/></button>
                           <button onClick={() => handleDelete("market_prices", m.id)} className="text-gray-400 hover:text-red-500 transition"><Trash2 size={16}/></button>
