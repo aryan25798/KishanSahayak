@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ✅ NOISE TEXTURE OVERLAY */
+/* This class creates a fixed overlay. You must add <div className="bg-noise"></div> to your App.jsx or index.html to see the effect. */
+.bg-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
 /* ✅ HIGH CONTRAST BACKGROUND */
 /* Using standard colors to ensure visibility */
 body {
@@ -17,14 +31,17 @@ body {
 ::-webkit-scrollbar {
   width: 10px;
 }
+
 ::-webkit-scrollbar-track {
   background: #cbd5e1; /* Slate-300 */
 }
+
 ::-webkit-scrollbar-thumb {
   background: #10b981; /* Emerald-500 */
   border-radius: 5px;
   border: 2px solid #cbd5e1;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #059669;
 }
