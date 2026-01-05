@@ -188,34 +188,37 @@ const Navbar = () => {
   return (
     <>
       {/* --- FLOATING NAVBAR --- */}
+      {/* UPDATE: Reduced top padding (pt-2) and side padding (px-2) on mobile */}
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: isVisible ? 0 : -100 }}
         transition={{ duration: 0.4, ease: "easeInOut" }}
-        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 px-4 pointer-events-none"
+        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 md:pt-4 px-2 md:px-4 pointer-events-none"
       >
         <div className="pointer-events-auto w-full max-w-7xl">
           <div className={`
             relative flex items-center justify-between 
             mx-auto transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
             ${lastScrollY > 20 
-              ? "bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg shadow-emerald-900/5 py-3 px-5 rounded-[2rem] md:w-[90%] lg:w-[85%]" 
-              : "bg-transparent py-5 px-6 w-full"
+              /* UPDATE: More compact padding on scroll for mobile (py-2 px-4) */
+              ? "bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg shadow-emerald-900/5 py-2 px-4 md:py-3 md:px-5 rounded-[2rem] md:w-[90%] lg:w-[85%]" 
+              /* UPDATE: More compact padding on initial state for mobile (py-3 px-4) */
+              : "bg-transparent py-3 px-4 md:py-5 md:px-6 w-full"
             }
           `}>
             
             {/* LOGO */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="relative flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
+              <div className="relative flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
                  <div className="absolute inset-0 bg-white/20 rounded-xl blur-sm group-hover:blur-md transition-all"></div>
-                 <Sprout size={20} className="relative z-10" strokeWidth={2.5} />
+                 <Sprout size={18} className="relative z-10 md:w-5 md:h-5" strokeWidth={2.5} />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-black tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors">
+                <span className="text-lg md:text-xl font-black tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors">
                   Kisan<span className="text-emerald-600">Sahayak</span>
                 </span>
                 {lastScrollY < 20 && (
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-0 animate-fade-in sm:opacity-100">AI Farming</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-0 animate-fade-in hidden sm:block">AI Farming</span>
                 )}
               </div>
             </Link>
@@ -241,8 +244,8 @@ const Navbar = () => {
                       />
                     )}
                     <span className="relative z-10 flex items-center gap-2">
-                       {isActive && <link.icon size={16} className="animate-pulse" />}
-                       {link.name}
+                        {isActive && <link.icon size={16} className="animate-pulse" />}
+                        {link.name}
                     </span>
                   </Link>
                 );
@@ -256,14 +259,14 @@ const Navbar = () => {
               {voiceSupported && (
                 <button 
                   onClick={handleVoiceNav}
-                  className={`relative p-3 rounded-full transition-all duration-300 group overflow-hidden ${
+                  className={`relative p-2 md:p-3 rounded-full transition-all duration-300 group overflow-hidden ${
                     isListening 
                       ? "bg-red-50 text-red-600 ring-2 ring-red-100 shadow-red-200 shadow-lg" 
                       : "bg-white/50 hover:bg-white text-slate-500 hover:text-emerald-600 border border-white/60 shadow-sm"
                   }`}
                 >
                   {isListening && <span className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></span>}
-                  {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                  {isListening ? <MicOff size={18} className="md:w-5 md:h-5" /> : <Mic size={18} className="md:w-5 md:h-5" />}
                 </button>
               )}
 
@@ -285,8 +288,8 @@ const Navbar = () => {
                    </Link>
 
                    {/* Mobile Profile */}
-                   <Link to="/my-farm" className="md:hidden w-10 h-10 rounded-full bg-white border border-slate-200 text-emerald-600 flex items-center justify-center shadow-sm">
-                     <User size={20} />
+                   <Link to="/my-farm" className="md:hidden w-9 h-9 rounded-full bg-white border border-slate-200 text-emerald-600 flex items-center justify-center shadow-sm">
+                     <User size={18} />
                    </Link>
 
                    {/* Logout */}
@@ -303,9 +306,9 @@ const Navbar = () => {
               {/* Mobile Menu Toggle */}
               <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-3 text-slate-700 bg-white/80 border border-white/60 backdrop-blur-md rounded-2xl shadow-sm active:scale-95 transition-all hover:bg-white hover:shadow-md"
+                className="lg:hidden p-2 md:p-3 text-slate-700 bg-white/80 border border-white/60 backdrop-blur-md rounded-2xl shadow-sm active:scale-95 transition-all hover:bg-white hover:shadow-md"
               >
-                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                 {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>
           </div>
@@ -320,7 +323,8 @@ const Navbar = () => {
             animate="open"
             exit="closed"
             variants={menuVariants}
-            className="fixed inset-0 z-40 bg-slate-50/95 backdrop-blur-3xl pt-28 px-6 lg:hidden overflow-y-auto"
+            /* UPDATE: Reduced top padding from pt-28 to pt-20 to reduce whitespace */
+            className="fixed inset-0 z-40 bg-slate-50/95 backdrop-blur-3xl pt-20 px-6 lg:hidden overflow-y-auto"
           >
              <div className="flex flex-col space-y-2 pb-10 max-w-lg mx-auto">
                 <motion.p variants={itemVariants} className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-6 px-2">
