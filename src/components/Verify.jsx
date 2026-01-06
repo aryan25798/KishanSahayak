@@ -79,7 +79,14 @@ const Verify = () => {
     setAiAnalysis(null); 
     
     try {
-      let formattedId = String(scannedValue).trim();
+      // ✅ FIX: Ensure we are handling a string, not an object
+      let inputString = scannedValue;
+      if (typeof scannedValue === 'object' && scannedValue !== null) {
+          // If the library passed an object, try to find the text property
+          inputString = scannedValue.decodedText || JSON.stringify(scannedValue);
+      }
+
+      let formattedId = String(inputString).trim();
 
       // Handle URLs vs Pure IDs
       if (formattedId.includes("://") || formattedId.includes("/")) {
@@ -123,7 +130,7 @@ const Verify = () => {
     }
   };
 
-  // --- 3. File Upload Logic (New) ---
+  // --- 3. File Upload Logic (Corrected) ---
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -131,16 +138,31 @@ const Verify = () => {
     setLoading(true);
     setErrorMsg(null);
 
+    // Clear existing scanner to prevent "Already Initialized" errors
+    try {
+      const tempScanner = new Html5Qrcode("reader-file");
+      await tempScanner.clear();
+    } catch (err) {
+      // Ignore if not initialized
+    }
+
     try {
         const html5QrCode = new Html5Qrcode("reader-file");
-        const decodedText = await html5QrCode.scanFileV2(file, true);
-        verifyCode(decodedText);
+        // Scan the file
+        const result = await html5QrCode.scanFileV2(file, true);
+        
+        console.log("Raw Scan Result:", result);
+
+        // ✅ FIX: Extract the text string if the library returns an object
+        const actualText = result.decodedText ? result.decodedText : result;
+        
+        verifyCode(actualText);
     } catch (err) {
         console.error("File Scan Error:", err);
-        setErrorMsg("Could not find a valid QR code in this image. Please try a clearer photo.");
+        setErrorMsg("Could not detect a QR code. Ensure the image is clear and focused.");
         setLoading(false);
     } finally {
-        // Reset input so the same file can be selected again if needed
+        // Reset input so same file can be selected again
         if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -226,8 +248,8 @@ const Verify = () => {
   return (
     <div className="min-h-screen bg-slate-50 pt-24 pb-12 px-4 md:px-8 font-sans">
       
-      {/* Hidden div for file scanning */}
-      <div id="reader-file" className="hidden"></div>
+      {/* Hidden div for file scanning (Must NOT be display:none) */}
+      <div id="reader-file" className="absolute top-0 left-0 w-px h-px opacity-0 overflow-hidden -z-50 pointer-events-none"></div>
 
       {/* Dynamic Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
