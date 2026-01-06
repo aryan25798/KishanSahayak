@@ -25,7 +25,6 @@ const Verify = () => {
   
   // Ref to hold the scanner instance
   const scannerRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   // --- 1. AI Analysis Logic ---
   const fetchAIAnalysis = async (productName) => {
@@ -62,6 +61,17 @@ const Verify = () => {
   const verifyCode = async (batchId) => {
     if (!batchId) return;
     
+    // Stop scanning immediately to prevent multiple triggers
+    if (scannerRef.current) {
+        try {
+            await scannerRef.current.stop();
+            scannerRef.current.clear();
+            scannerRef.current = null;
+        } catch (e) {
+            console.warn("Failed to stop scanner", e);
+        }
+    }
+    
     setIsScanning(false);
     setLoading(true);
     setResult(null);
@@ -70,7 +80,10 @@ const Verify = () => {
     setAiAnalysis(null); 
     
     try {
-      const formattedId = batchId.trim().toUpperCase(); 
+      // Ensure batchId is a string
+      const formattedId = String(batchId).trim().toUpperCase(); 
+      console.log("Verifying ID:", formattedId); // Debug log
+
       await new Promise(r => setTimeout(r, 800)); // UX delay
 
       const docRef = doc(db, "products", formattedId);
@@ -85,11 +98,18 @@ const Verify = () => {
           fetchAIAnalysis(data.name);
         }
       } else {
+        console.warn("Document not found for ID:", formattedId);
         setResult("fake");
       }
     } catch (err) {
-      console.error(err);
-      setErrorMsg("Connection failed. Please check internet.");
+      console.error("Verification Error:", err);
+      if (err.code === 'unavailable') {
+         setErrorMsg("No internet connection. Please check your network.");
+      } else if (err.code === 'permission-denied') {
+         setErrorMsg("Access denied. Please login again.");
+      } else {
+         setErrorMsg("Failed to verify. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -97,16 +117,44 @@ const Verify = () => {
 
   // --- 3. Scanner Logic ---
   useEffect(() => {
+    // Cleanup function to stop scanner on unmount
+    return () => {
+        if (scannerRef.current) {
+            try {
+                scannerRef.current.stop().then(() => {
+                    scannerRef.current.clear();
+                }).catch(err => console.warn(err));
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+            scannerRef.current = null;
+        }
+    };
+  }, []);
+
+  // Separate effect to start scanner when isScanning changes
+  useEffect(() => {
     if (!isScanning) return;
 
     const scannerId = "reader";
-    let html5QrCode;
-
-    const timeoutId = setTimeout(() => {
+    const startScanner = async () => {
         try {
-            if (!document.getElementById(scannerId)) return;
+            // Wait for DOM element to be ready
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (!document.getElementById(scannerId)) {
+                console.error("Scanner element not found");
+                setIsScanning(false);
+                return;
+            }
 
-            html5QrCode = new Html5Qrcode(scannerId);
+            // If a scanner instance already exists, reuse or stop it
+            if (scannerRef.current) {
+                await scannerRef.current.stop().catch(() => {});
+                scannerRef.current.clear();
+            }
+
+            const html5QrCode = new Html5Qrcode(scannerId);
             scannerRef.current = html5QrCode;
 
             const config = { 
@@ -116,37 +164,43 @@ const Verify = () => {
                 formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
             };
 
-            html5QrCode.start(
+            await html5QrCode.start(
                 { facingMode: "environment" }, 
                 config,
-                (decodedText) => verifyCode(decodedText),
-                (errorMessage) => { /* ignore */ }
-            ).catch(err => {
-                console.error("Failed to start scanner", err);
-                setErrorMsg("Camera permission denied.");
-                setIsScanning(false);
-            });
+                (decodedText) => {
+                    console.log("Scanned:", decodedText);
+                    verifyCode(decodedText);
+                },
+                (errorMessage) => { 
+                    // Ignore frame read errors, they are noisy
+                }
+            );
 
         } catch (err) {
-            console.error("Scanner init error:", err);
+            console.error("Scanner start error:", err);
+            setErrorMsg("Camera error. Please ensure permissions are granted.");
             setIsScanning(false);
         }
-    }, 100);
-
-    return () => {
-        clearTimeout(timeoutId);
-        if (scannerRef.current) {
-            scannerRef.current.stop().then(() => {
-                scannerRef.current.clear();
-            }).catch(err => console.warn(err));
-            scannerRef.current = null;
-        }
     };
+
+    startScanner();
+
   }, [isScanning]);
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
     verifyCode(code);
+  };
+
+  const handleCloseScanner = async () => {
+    if (scannerRef.current) {
+        try {
+            await scannerRef.current.stop();
+            scannerRef.current.clear();
+        } catch (e) { console.warn(e); }
+        scannerRef.current = null;
+    }
+    setIsScanning(false);
   };
 
   return (
@@ -183,7 +237,7 @@ const Verify = () => {
           {/* Scanner/Input Card */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2rem] p-6 md:p-8 shadow-xl flex-1 flex flex-col justify-center"
+            className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2rem] p-6 md:p-8 shadow-xl flex-1 flex flex-col justify-center min-h-[400px]"
           >
               {errorMsg && (
                   <div className="mb-4 bg-red-50 text-red-600 p-4 rounded-xl text-sm flex items-center gap-3 border border-red-100">
@@ -242,7 +296,7 @@ const Verify = () => {
                   >
                       <div id="reader" className="w-full h-full"></div>
                       <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
-                        <div className="w-64 h-64 border-2 border-emerald-500/50 rounded-3xl relative">
+                        <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-emerald-500/50 rounded-3xl relative">
                           <div className="absolute inset-0 bg-emerald-500/10 animate-pulse rounded-2xl"></div>
                           <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-emerald-500 rounded-tl-xl -mt-1 -ml-1"></div>
                           <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-emerald-500 rounded-tr-xl -mt-1 -mr-1"></div>
@@ -251,7 +305,7 @@ const Verify = () => {
                         </div>
                         <p className="mt-6 text-white/90 font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-md text-sm">Align code within frame</p>
                       </div>
-                      <button onClick={() => setIsScanning(false)} className="absolute top-4 right-4 bg-white/20 backdrop-blur-xl p-3 rounded-full text-white hover:bg-white/30 transition-colors z-50">
+                      <button onClick={handleCloseScanner} className="absolute top-4 right-4 bg-white/20 backdrop-blur-xl p-3 rounded-full text-white hover:bg-white/30 transition-colors z-50 pointer-events-auto">
                         <X size={20} />
                       </button>
                   </motion.div>
