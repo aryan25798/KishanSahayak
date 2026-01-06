@@ -43,6 +43,11 @@ const Navbar = () => {
   // Check if user is Admin
   const isAdmin = user?.email === "admin@system.com" || userData?.role === "admin";
 
+  // ✅ HIDE NAVBAR ON ADMIN DASHBOARD
+  if (location.pathname.startsWith("/admin")) {
+    return null;
+  }
+
   // --- SMART SCROLL LOGIC ---
   useEffect(() => {
     const controlNavbar = () => {
@@ -188,7 +193,6 @@ const Navbar = () => {
   return (
     <>
       {/* --- FLOATING NAVBAR --- */}
-      {/* UPDATE: Reduced top padding (pt-2) and side padding (px-2) on mobile */}
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: isVisible ? 0 : -100 }}
@@ -200,9 +204,7 @@ const Navbar = () => {
             relative flex items-center justify-between 
             mx-auto transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
             ${lastScrollY > 20 
-              /* UPDATE: More compact padding on scroll for mobile (py-2 px-4) */
               ? "bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg shadow-emerald-900/5 py-2 px-4 md:py-3 md:px-5 rounded-[2rem] md:w-[90%] lg:w-[85%]" 
-              /* UPDATE: More compact padding on initial state for mobile (py-3 px-4) */
               : "bg-transparent py-3 px-4 md:py-5 md:px-6 w-full"
             }
           `}>
@@ -323,7 +325,6 @@ const Navbar = () => {
             animate="open"
             exit="closed"
             variants={menuVariants}
-            /* UPDATE: Reduced top padding from pt-28 to pt-20 to reduce whitespace */
             className="fixed inset-0 z-40 bg-slate-50/95 backdrop-blur-3xl pt-20 px-6 lg:hidden overflow-y-auto"
           >
              <div className="flex flex-col space-y-2 pb-10 max-w-lg mx-auto">

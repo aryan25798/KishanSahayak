@@ -4,32 +4,31 @@ import { db, auth, storage } from "../firebase";
 import { 
   collection, addDoc, getDocs, deleteDoc, doc, setDoc, 
   query, where, updateDoc, orderBy, limit, startAfter, writeBatch,
-  serverTimestamp, arrayUnion, arrayRemove // ✅ Added for Calendar Logic
+  serverTimestamp, arrayUnion, arrayRemove 
 } from "firebase/firestore"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, useSearchParams } from "react-router-dom"; // ✅ Added useSearchParams
+import { useNavigate, useSearchParams } from "react-router-dom"; 
 import { 
   Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
   Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
   MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor,
-  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, Calendar, Star, Filter // ✅ Added Star, Filter
+  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, 
+  Calendar, Star, Filter, Sprout, Bell, ChevronDown // ✅ Added Sprout, Bell, ChevronDown
 } from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
 import * as XLSX from 'xlsx'; 
 import ChatInterface from "./ChatInterface";
 import EquipmentChat from "./EquipmentChat"; 
-import { formatTime } from "../utils/formatTime"; // ✅ Imported utility
+import { formatTime } from "../utils/formatTime"; 
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams(); // ✅ Hook for URL Params
+  const [searchParams, setSearchParams] = useSearchParams(); 
 
-  // ✅ Derive activeTab from URL (Defaults to "products" if empty)
   const activeTab = searchParams.get("tab") || "products";
 
-  // ✅ Function to update URL when tab changes (Persists on Refresh)
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
   };
@@ -47,11 +46,11 @@ const AdminDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]); 
   const [equipmentRequests, setEquipmentRequests] = useState([]); 
-  const [reviews, setReviews] = useState([]); // ✅ Added Reviews State
+  const [reviews, setReviews] = useState([]); 
   const [loading, setLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false); 
 
-  // Pagination States for Products
+  // Pagination States
   const [lastProductDoc, setLastProductDoc] = useState(null);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
   const PRODUCTS_PER_PAGE = 10;
@@ -60,7 +59,7 @@ const AdminDashboard = () => {
   const [activeChat, setActiveChat] = useState(null);
   const [chatType, setChatType] = useState(null); 
 
-  // Review State ✅
+  // Review State
   const [reviewRequest, setReviewRequest] = useState(null); 
   const [reviewData, setReviewData] = useState({ rating: 5, comment: "" });
 
@@ -74,21 +73,19 @@ const AdminDashboard = () => {
   const marketFileRef = useRef(null);
   const equipmentFileRef = useRef(null); 
 
-  // --- PRODUCT FORM STATE ---
+  // --- FORM STATES ---
   const [productName, setProductName] = useState("");
   const [batchCode, setBatchCode] = useState("");
   const [productImage, setProductImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
    
-  // --- SCHEME FORM STATE ---
   const [schemeTitle, setSchemeTitle] = useState("");
   const [schemeDesc, setSchemeDesc] = useState("");
   const [schemeCategory, setSchemeCategory] = useState("Scheme");
   const [schemeImage, setSchemeImage] = useState(null); 
   const [schemeImagePreview, setSchemeImagePreview] = useState(null); 
 
-  // --- MARKET PRICE FORM STATE ---
   const [marketCrop, setMarketCrop] = useState("");
   const [marketMandi, setMarketMandi] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
@@ -97,7 +94,6 @@ const AdminDashboard = () => {
   const [marketImagePreview, setMarketImagePreview] = useState(null); 
   const [editMarketId, setEditMarketId] = useState(null);
 
-  // --- EQUIPMENT FORM STATE --- 
   const [eqName, setEqName] = useState("");
   const [eqType, setEqType] = useState("Rent");
   const [eqPrice, setEqPrice] = useState("");
@@ -105,32 +101,26 @@ const AdminDashboard = () => {
   const [eqImage, setEqImage] = useState(null);
   const [eqImagePreview, setEqImagePreview] = useState(null);
 
-  // Complaint Resolution State
   const [resolvingId, setResolvingId] = useState(null);
   const [replyText, setReplyText] = useState("");
 
-  // Search & API States
   const [searchQuery, setSearchQuery] = useState("latest agriculture subsidy india 2026");
   const [webResults, setWebResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  // ✅ Global Search State for Modules
   const [moduleSearch, setModuleSearch] = useState("");
 
-  // Environment Variables
   const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_SEARCH_KEY; 
   const SEARCH_ENGINE_ID = import.meta.env.VITE_SEARCH_ENGINE_ID; 
   const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
   const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
   const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-  // --- Helpers ---
   const showToast = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // ✅ Helper to calculate dates
   const getDatesInRange = (start, end) => {
     const dates = [];
     let curr = new Date(start);
@@ -142,7 +132,6 @@ const AdminDashboard = () => {
     return dates;
   };
 
-  // --- Initial Admin Check ---
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -154,10 +143,9 @@ const AdminDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Clear selections and search when tab changes
   useEffect(() => {
     setSelectedItems(new Set());
-    setModuleSearch(""); // ✅ Reset search on tab change
+    setModuleSearch(""); 
   }, [activeTab]);
 
   // --- Fetching Functions ---
@@ -166,7 +154,6 @@ const AdminDashboard = () => {
     try {
       const productsRef = collection(db, "products");
       let q;
-      // ✅ Changed: Order by verificationDate desc (Newest First)
       if (isNextPage && lastProductDoc) {
         q = query(productsRef, orderBy("verificationDate", "desc"), limit(PRODUCTS_PER_PAGE), startAfter(lastProductDoc));
       } else {
@@ -204,7 +191,6 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const cSnap = await getDocs(collection(db, "complaints"));
-      // ✅ Changed: Sort client-side by timestamp descending
       setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
     } catch (err) { console.error(err); }
@@ -224,7 +210,6 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const marketSnap = await getDocs(collection(db, "market_prices"));
-      // ✅ Changed: Sort client-side by timestamp descending
       setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
     } catch (err) { console.error(err); }
@@ -246,11 +231,9 @@ const AdminDashboard = () => {
       const eqSnap = await getDocs(collection(db, "equipment"));
       setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
        
-      // Fetch Requests
       const reqSnap = await getDocs(query(collection(db, "equipment_requests"), orderBy("timestamp", "desc")));
       setEquipmentRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-      // Fetch Reviews
       const rSnap = await getDocs(collection(db, "reviews"));
       setReviews(rSnap.docs.map(d => d.data()));
     } catch (err) { console.error(err); }
@@ -416,7 +399,7 @@ const AdminDashboard = () => {
 
     setIsDeleting(true);
     try {
-        const batch = writeBatch(db); // Use batch for deleting selected items too
+        const batch = writeBatch(db); 
         selectedItems.forEach(id => {
             const docRef = doc(db, collectionName, id);
             batch.delete(docRef);
@@ -1037,7 +1020,7 @@ const AdminDashboard = () => {
                 <div>
                     <span className="font-bold block text-gray-800">Scheme: {app.schemeTitle}</span>
                     Lat: {app.location?.lat.toFixed(4)}, Lng: {app.location?.lng.toFixed(4)}
-                    <a href={`https://maps.google.com/?q=${app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">View Map</a>
+                    <a href={`http://googleusercontent.com/maps.google.com/?q=${app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">View Map</a>
                 </div>
                 </div>
                 {app.status === "Pending" && (
@@ -1526,8 +1509,33 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans pt-16">
+    <div className="min-h-screen bg-gray-50 flex font-sans">
        
+       {/* --- NEW HEADER BAR --- */}
+       <div className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 h-20 flex items-center justify-between px-4 md:px-6 shadow-sm">
+          {/* Logo Area */}
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-600/30">
+                <Sprout size={24} />
+             </div>
+             <div>
+                <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Kisan<span className="text-green-600">Sahayak</span></h1>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admin Console</span>
+             </div>
+          </div>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-4">
+             <div className="hidden md:flex flex-col items-end mr-2">
+                 <span className="text-sm font-bold text-slate-700">{user?.email}</span>
+                 <span className="text-xs text-slate-400">{new Date().toLocaleDateString()}</span>
+             </div>
+             <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
+                 <Users size={20} className="text-slate-600" />
+             </div>
+          </div>
+       </div>
+
       {notification && (
         <div className={`fixed top-24 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'error' ? 'bg-red-50 border border-red-100 text-red-700' : 'bg-white border border-green-100 text-green-700'}`}>
           {notification.type === 'error' ? <AlertCircle size={20}/> : <CheckCircle size={20}/>}
@@ -1549,17 +1557,17 @@ const AdminDashboard = () => {
         fixed inset-y-0 left-0 z-[100] w-64 bg-slate-900 text-white p-6 
         transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-        md:translate-x-0 md:fixed md:top-16 md:bottom-0 md:left-0 md:z-30
-        flex flex-col h-full border-r border-gray-800
+        md:translate-x-0 md:fixed md:top-20 md:bottom-0 md:left-0 md:z-30
+        flex flex-col h-[calc(100vh-5rem)] border-r border-gray-800 mt-0 md:mt-0
       `}>
-        <div className="flex justify-between items-center mb-8 shrink-0">
+        <div className="flex justify-between items-center mb-8 shrink-0 md:hidden">
             <h2 className="text-xl font-bold text-green-400 tracking-tight flex items-center gap-2"><Package size={24}/> Admin Panel</h2>
-            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white transition">
+            <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-white transition">
               <X size={24} />
             </button>
         </div>
 
-        <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+        <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 custom-scrollbar mt-4 md:mt-0">
           {[
             { id: "products", label: "Products", icon: Package },
             { id: "schemes", label: "Schemes", icon: ScrollText },
@@ -1596,7 +1604,7 @@ const AdminDashboard = () => {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 p-4 lg:p-8 pb-24 overflow-y-auto md:ml-64 max-w-7xl mx-auto w-full">
+      <div className="flex-1 p-4 lg:p-8 pb-24 mt-20 overflow-y-auto md:ml-64 max-w-7xl mx-auto w-full">
         
         {activeTab === "products" && renderProducts()}
         {activeTab === "schemes" && renderSchemes()}

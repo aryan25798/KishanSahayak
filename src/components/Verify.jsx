@@ -58,18 +58,16 @@ const Verify = () => {
   };
 
   // --- 2. Verification Logic ---
-  const verifyCode = async (batchId) => {
-    if (!batchId) return;
+  const verifyCode = async (scannedValue) => {
+    if (!scannedValue) return;
     
-    // Stop scanning immediately to prevent multiple triggers
+    // Stop scanning immediately
     if (scannerRef.current) {
         try {
             await scannerRef.current.stop();
             scannerRef.current.clear();
             scannerRef.current = null;
-        } catch (e) {
-            console.warn("Failed to stop scanner", e);
-        }
+        } catch (e) { console.warn("Stop error:", e); }
     }
     
     setIsScanning(false);
@@ -80,9 +78,21 @@ const Verify = () => {
     setAiAnalysis(null); 
     
     try {
-      // Ensure batchId is a string
-      const formattedId = String(batchId).trim().toUpperCase(); 
-      console.log("Verifying ID:", formattedId); // Debug log
+      let formattedId = String(scannedValue).trim();
+
+      // --- CRITICAL FIX: Handle URLs vs Pure IDs ---
+      // If it's a URL (e.g. https://qr-codes.io/NnFd15), extract the last part
+      if (formattedId.includes("://") || formattedId.includes("/")) {
+          const parts = formattedId.split("/");
+          // Get the last segment that isn't empty
+          formattedId = parts.filter(p => p.length > 0).pop();
+      }
+
+      // Final cleanup
+      formattedId = formattedId.toUpperCase().trim();
+      
+      console.log("Verifying Extracted ID:", formattedId); 
+      setCode(formattedId); // Show the extracted ID in the UI
 
       await new Promise(r => setTimeout(r, 800)); // UX delay
 
@@ -108,7 +118,7 @@ const Verify = () => {
       } else if (err.code === 'permission-denied') {
          setErrorMsg("Access denied. Please login again.");
       } else {
-         setErrorMsg("Failed to verify. Please try again.");
+         setErrorMsg("Invalid code format or network error.");
       }
     } finally {
       setLoading(false);
@@ -117,38 +127,33 @@ const Verify = () => {
 
   // --- 3. Scanner Logic ---
   useEffect(() => {
-    // Cleanup function to stop scanner on unmount
+    // Cleanup on unmount
     return () => {
         if (scannerRef.current) {
             try {
                 scannerRef.current.stop().then(() => {
                     scannerRef.current.clear();
-                }).catch(err => console.warn(err));
-            } catch (e) {
-                // Ignore cleanup errors
-            }
+                }).catch(() => {});
+            } catch (e) {}
             scannerRef.current = null;
         }
     };
   }, []);
 
-  // Separate effect to start scanner when isScanning changes
+  // Start scanner when isScanning becomes true
   useEffect(() => {
     if (!isScanning) return;
 
     const scannerId = "reader";
     const startScanner = async () => {
         try {
-            // Wait for DOM element to be ready
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100)); // DOM wait
             
             if (!document.getElementById(scannerId)) {
-                console.error("Scanner element not found");
                 setIsScanning(false);
                 return;
             }
 
-            // If a scanner instance already exists, reuse or stop it
             if (scannerRef.current) {
                 await scannerRef.current.stop().catch(() => {});
                 scannerRef.current.clear();
@@ -168,17 +173,15 @@ const Verify = () => {
                 { facingMode: "environment" }, 
                 config,
                 (decodedText) => {
-                    console.log("Scanned:", decodedText);
+                    console.log("Raw Scan:", decodedText);
                     verifyCode(decodedText);
                 },
-                (errorMessage) => { 
-                    // Ignore frame read errors, they are noisy
-                }
+                (errorMessage) => { /* ignore frame errors */ }
             );
 
         } catch (err) {
             console.error("Scanner start error:", err);
-            setErrorMsg("Camera error. Please ensure permissions are granted.");
+            setErrorMsg("Camera error. Check permissions.");
             setIsScanning(false);
         }
     };
@@ -197,7 +200,7 @@ const Verify = () => {
         try {
             await scannerRef.current.stop();
             scannerRef.current.clear();
-        } catch (e) { console.warn(e); }
+        } catch (e) {}
         scannerRef.current = null;
     }
     setIsScanning(false);
