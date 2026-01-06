@@ -25,9 +25,10 @@ const Login = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Check if Admin
+      // 🚨 ADMIN CHECK (Google)
       if (user.email === "admin@system.com") {
-        navigate("/admin");
+        console.log("Admin detected via Google, redirecting...");
+        navigate("/admin", { replace: true }); // Direct to Admin
         return;
       }
 
@@ -43,14 +44,19 @@ const Login = () => {
           photo: user.photoURL
         });
       }
-      navigate("/");
+      
+      // Standard User Redirect
+      navigate("/", { replace: true });
+
     } catch (err) {
+      console.error(err);
       setError("Google Login Failed. Try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // 2. Handle Auth
+  // 2. Handle Email/Password Auth
   const handleAuth = async (e) => {
     e.preventDefault();
     if (!email || !password) return setError("Please fill all fields.");
@@ -61,36 +67,45 @@ const Login = () => {
 
     try {
       if (isLogin) {
-        // ✅ FIX: Capture user result to check email
+        // --- LOGIN LOGIC ---
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // ✅ FIX: Check if Admin and Redirect
+        // 🚨 ADMIN CHECK (Email/Password)
+        // We use replace: true so the Back button doesn't take them back to login
         if (user.email === "admin@system.com") {
-             navigate("/admin");
+             console.log("Admin detected, redirecting to Dashboard...");
+             navigate("/admin", { replace: true });
         } else {
-             navigate("/");
+             console.log("User detected, redirecting to Home...");
+             navigate("/", { replace: true });
         }
 
       } else {
+        // --- SIGN UP LOGIC ---
+        // Admin cannot sign up via this form, they must exist in Auth already
         const result = await createUserWithEmailAndPassword(auth, email, password);
         const user = result.user;
         await updateProfile(user, { displayName: name });
+        
         await setDoc(doc(db, "users", user.uid), {
           name: name,
           email: email,
           role: "farmer",
           createdAt: new Date()
         });
-        navigate("/");
+        
+        navigate("/", { replace: true });
       }
     } catch (err) {
+      console.error(err);
       if (err.code === 'auth/invalid-credential') setError("Invalid Email or Password.");
       else if (err.code === 'auth/email-already-in-use') setError("Email already registered.");
       else if (err.code === 'auth/weak-password') setError("Password too weak.");
       else setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -99,14 +114,12 @@ const Login = () => {
       {/* LEFT SIDE: Visuals (Hidden on mobile, Visible on Desktop) */}
       <div className="hidden lg:flex w-1/2 relative rounded-tr-[50px] rounded-br-[50px] overflow-hidden ml-4 mb-4 shadow-2xl shadow-green-900/20 bg-gray-100">
         
-        {/* 🔴 NEW IMAGE: Reliable URL for Indian Farmer */}
         <img 
           src="https://images.unsplash.com/photo-1605000797499-95a51c5269ae?q=80&w=2071&auto=format&fit=crop" 
           alt="Indian Farmer in Field" 
           className="absolute inset-0 w-full h-full object-cover"
         />
         
-        {/* Gradient Overlay for Text Readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
         
         <div className="relative z-10 flex flex-col justify-end p-16 text-white h-full w-full">
@@ -139,7 +152,6 @@ const Login = () => {
       {/* RIGHT SIDE: Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 lg:p-12 relative">
         
-        {/* Mobile Background Decoration */}
         <div className="lg:hidden absolute top-0 right-0 w-64 h-64 bg-green-100 rounded-full blur-3xl opacity-50 -z-10 translate-x-1/2 -translate-y-1/2"></div>
         <div className="lg:hidden absolute bottom-0 left-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-50 -z-10 -translate-x-1/2 translate-y-1/2"></div>
 
@@ -153,7 +165,6 @@ const Login = () => {
              <p className="text-gray-500">{isLogin ? "Access your smart farming dashboard." : "Join thousands of modern farmers today."}</p>
           </div>
 
-          {/* Social Login */}
           <button 
             onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 p-3.5 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all group mb-8 shadow-sm"

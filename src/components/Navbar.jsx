@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -43,18 +44,13 @@ const Navbar = () => {
   // Check if user is Admin
   const isAdmin = user?.email === "admin@system.com" || userData?.role === "admin";
 
-  // ✅ HIDE NAVBAR ON ADMIN DASHBOARD
-  if (location.pathname.startsWith("/admin")) {
-    return null;
-  }
-
   // --- SMART SCROLL LOGIC ---
   useEffect(() => {
     const controlNavbar = () => {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY;
         
-        // Hide on scroll down, show on scroll up
+        // Hide on scroll down, show on scroll up (threshold 50px)
         if (currentScrollY > lastScrollY && currentScrollY > 50 && !isMobileMenuOpen) {
           setIsVisible(false);
         } else {
@@ -179,7 +175,7 @@ const Navbar = () => {
     navLinks.push({ name: "Admin", path: "/admin", icon: ShieldCheck });
   }
 
-  // Animation variants for mobile menu
+  // Animation variants
   const menuVariants = {
     closed: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
     open: { opacity: 1, scale: 1, transition: { duration: 0.3, staggerChildren: 0.1, delayChildren: 0.2 } }
@@ -190,42 +186,68 @@ const Navbar = () => {
     open: { opacity: 1, y: 0 }
   };
 
+  // Don't render Navbar on Admin Dashboard
+  if (location.pathname.startsWith("/admin")) {
+    return null;
+  }
+
+  const isScrolled = lastScrollY > 20;
+
   return (
     <>
-      {/* --- FLOATING NAVBAR --- */}
+      {/* --- FLOATING NAVBAR CONTAINER --- */}
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: isVisible ? 0 : -100 }}
         transition={{ duration: 0.4, ease: "easeInOut" }}
-        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 md:pt-4 px-2 md:px-4 pointer-events-none"
+        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2 md:pt-4 pointer-events-none"
       >
-        <div className="pointer-events-auto w-full max-w-7xl">
+        <div className="w-full flex justify-center">
+          {/* --- THE ACTUAL BAR (CAPSULE) --- */}
           <div className={`
-            relative flex items-center justify-between 
-            mx-auto transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
-            ${lastScrollY > 20 
-              ? "bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg shadow-emerald-900/5 py-2 px-4 md:py-3 md:px-5 rounded-[2rem] md:w-[90%] lg:w-[85%]" 
-              : "bg-transparent py-3 px-4 md:py-5 md:px-6 w-full"
+            pointer-events-auto
+            transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
+            flex items-center justify-between
+            
+            ${isScrolled 
+              ? "bg-white/90 backdrop-blur-xl border border-white/40 shadow-lg shadow-emerald-900/10" 
+              : "bg-transparent border-transparent"
+            }
+
+            /* RESPONSIVE DIMENSIONS FOR CAPSULE MODE */
+            ${isScrolled
+               ? "w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl rounded-2xl md:rounded-full py-2 px-3 md:py-3 md:px-6"
+               : "w-full max-w-7xl px-4 py-4 md:px-8 md:py-6"
             }
           `}>
             
-            {/* LOGO */}
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="relative flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-xl text-white shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
-                 <div className="absolute inset-0 bg-white/20 rounded-xl blur-sm group-hover:blur-md transition-all"></div>
-                 <Sprout size={18} className="relative z-10 md:w-5 md:h-5" strokeWidth={2.5} />
+            {/* 1. LOGO SECTION */}
+            <Link to="/" className="flex items-center gap-2 md:gap-3 group shrink-0">
+              <div className={`
+                relative flex items-center justify-center 
+                bg-gradient-to-tr from-emerald-600 to-teal-500 
+                text-white shadow-lg shadow-emerald-500/30 
+                transition-all duration-300 group-hover:scale-110
+                ${isScrolled ? "w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl" : "w-10 h-10 md:w-11 md:h-11 rounded-xl"}
+              `}>
+                  <div className="absolute inset-0 bg-white/20 rounded-inherit blur-sm group-hover:blur-md transition-all"></div>
+                  <Sprout className={`relative z-10 transition-all ${isScrolled ? "w-4 h-4 md:w-5 md:h-5" : "w-5 h-5 md:w-6 md:h-6"}`} strokeWidth={2.5} />
               </div>
+              
               <div className="flex flex-col">
-                <span className="text-lg md:text-xl font-black tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors">
+                <span className={`
+                  font-black tracking-tight text-slate-800 group-hover:text-emerald-700 transition-colors
+                  ${isScrolled ? "text-lg md:text-xl" : "text-xl md:text-2xl"}
+                `}>
                   Kisan<span className="text-emerald-600">Sahayak</span>
                 </span>
-                {lastScrollY < 20 && (
+                {!isScrolled && (
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-0 animate-fade-in hidden sm:block">AI Farming</span>
                 )}
               </div>
             </Link>
 
-            {/* DESKTOP LINKS (FLOATING PILL) */}
+            {/* 2. DESKTOP LINKS (CENTER PILL) */}
             <div className="hidden lg:flex items-center bg-slate-100/50 p-1.5 rounded-full border border-slate-200/60 backdrop-blur-md">
               {navLinks.map((link) => {
                 const isActive = location.pathname === link.path;
@@ -254,47 +276,55 @@ const Navbar = () => {
               })}
             </div>
 
-            {/* RIGHT ACTIONS */}
-            <div className="flex items-center gap-2 md:gap-3">
+            {/* 3. RIGHT ACTIONS */}
+            <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
               
               {/* Voice Button */}
               {voiceSupported && (
                 <button 
                   onClick={handleVoiceNav}
-                  className={`relative p-2 md:p-3 rounded-full transition-all duration-300 group overflow-hidden ${
-                    isListening 
+                  className={`
+                    relative rounded-full transition-all duration-300 group overflow-hidden
+                    flex items-center justify-center
+                    ${isScrolled ? "p-2" : "p-2.5 md:p-3"}
+                    ${isListening 
                       ? "bg-red-50 text-red-600 ring-2 ring-red-100 shadow-red-200 shadow-lg" 
                       : "bg-white/50 hover:bg-white text-slate-500 hover:text-emerald-600 border border-white/60 shadow-sm"
-                  }`}
+                    }
+                  `}
                 >
                   {isListening && <span className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></span>}
                   {isListening ? <MicOff size={18} className="md:w-5 md:h-5" /> : <Mic size={18} className="md:w-5 md:h-5" />}
                 </button>
               )}
 
-              {/* Language Selector */}
+              {/* Language Selector (Hidden on tiny screens) */}
               <div className="hidden md:block scale-90 opacity-80 hover:opacity-100 transition-opacity">
-                 <GoogleTranslate />
+                  <GoogleTranslate />
               </div>
 
               {/* User Profile */}
               {user ? (
                 <div className="flex items-center gap-2">
+                   {/* Desktop Profile Pill */}
                    <Link to="/my-farm" className="hidden md:flex items-center gap-3 pl-1 pr-4 py-1 bg-white/50 hover:bg-white border border-white/60 hover:border-emerald-200 rounded-full shadow-sm hover:shadow-md transition-all group backdrop-blur-sm">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-green-50 flex items-center justify-center text-emerald-700 border border-emerald-200/50">
                         <User size={16} />
                       </div>
                       <div className="text-left hidden lg:block">
-                         <p className="text-xs font-bold text-slate-800 leading-tight">{user.displayName?.split(" ")[0] || "Farmer"}</p>
+                          <p className="text-xs font-bold text-slate-800 leading-tight">{user.displayName?.split(" ")[0] || "Farmer"}</p>
                       </div>
                    </Link>
 
-                   {/* Mobile Profile */}
-                   <Link to="/my-farm" className="md:hidden w-9 h-9 rounded-full bg-white border border-slate-200 text-emerald-600 flex items-center justify-center shadow-sm">
-                     <User size={18} />
+                   {/* Mobile Profile Circle */}
+                   <Link to="/my-farm" className={`
+                     md:hidden rounded-full bg-white border border-slate-200 text-emerald-600 flex items-center justify-center shadow-sm
+                     ${isScrolled ? "w-8 h-8" : "w-10 h-10"}
+                   `}>
+                     <User size={isScrolled ? 16 : 18} />
                    </Link>
 
-                   {/* Logout */}
+                   {/* Logout (Desktop) */}
                    <button onClick={handleLogout} className="hidden md:flex p-2.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50/50 transition-colors">
                      <LogOut size={20} />
                    </button>
@@ -308,7 +338,10 @@ const Navbar = () => {
               {/* Mobile Menu Toggle */}
               <button 
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 md:p-3 text-slate-700 bg-white/80 border border-white/60 backdrop-blur-md rounded-2xl shadow-sm active:scale-95 transition-all hover:bg-white hover:shadow-md"
+                className={`
+                  lg:hidden text-slate-700 bg-white/80 border border-white/60 backdrop-blur-md rounded-xl shadow-sm active:scale-95 transition-all hover:bg-white hover:shadow-md flex items-center justify-center
+                  ${isScrolled ? "p-2" : "p-2.5"}
+                `}
               >
                  {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -317,7 +350,7 @@ const Navbar = () => {
         </div>
       </motion.nav>
 
-      {/* --- CINEMATIC MOBILE MENU --- */}
+      {/* --- MOBILE MENU OVERLAY --- */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 
@@ -325,11 +358,11 @@ const Navbar = () => {
             animate="open"
             exit="closed"
             variants={menuVariants}
-            className="fixed inset-0 z-40 bg-slate-50/95 backdrop-blur-3xl pt-20 px-6 lg:hidden overflow-y-auto"
+            className="fixed inset-0 z-40 bg-slate-50/95 backdrop-blur-3xl pt-24 px-6 lg:hidden overflow-y-auto"
           >
              <div className="flex flex-col space-y-2 pb-10 max-w-lg mx-auto">
                 <motion.p variants={itemVariants} className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-6 px-2">
-                  Menu
+                  Navigation
                 </motion.p>
                 
                 {navLinks.map((link) => (
@@ -338,12 +371,12 @@ const Navbar = () => {
                       to={link.path} 
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`group flex items-center justify-between p-4 rounded-3xl transition-all border ${
-                         location.pathname === link.path 
-                         ? "bg-white border-emerald-100 shadow-lg shadow-emerald-100/50" 
-                         : "bg-white/40 border-transparent hover:bg-white hover:border-slate-100"
+                          location.pathname === link.path 
+                          ? "bg-white border-emerald-100 shadow-lg shadow-emerald-100/50" 
+                          : "bg-white/40 border-transparent hover:bg-white hover:border-slate-100"
                       }`}
                     >
-                       <div className="flex items-center gap-5">
+                        <div className="flex items-center gap-5">
                           <div className={`p-3 rounded-2xl transition-colors ${
                             location.pathname === link.path 
                             ? "bg-emerald-50 text-emerald-600" 
@@ -356,8 +389,8 @@ const Navbar = () => {
                           }`}>
                             {link.name}
                           </span>
-                       </div>
-                       <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-400 transition-colors" />
+                        </div>
+                        <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-400 transition-colors" />
                     </Link>
                   </motion.div>
                 ))}
