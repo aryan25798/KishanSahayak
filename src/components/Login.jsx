@@ -25,6 +25,12 @@ const Login = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
+      // Check if Admin
+      if (user.email === "admin@system.com") {
+        navigate("/admin");
+        return;
+      }
+
       const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
 
@@ -55,8 +61,17 @@ const Login = () => {
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-        navigate("/");
+        // ✅ FIX: Capture user result to check email
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // ✅ FIX: Check if Admin and Redirect
+        if (user.email === "admin@system.com") {
+             navigate("/admin");
+        } else {
+             navigate("/");
+        }
+
       } else {
         const result = await createUserWithEmailAndPassword(auth, email, password);
         const user = result.user;

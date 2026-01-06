@@ -14,7 +14,7 @@ import {
   Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
   MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor,
   History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, 
-  Calendar, Star, Filter, Sprout, Bell, ChevronDown // ✅ Added Sprout, Bell, ChevronDown
+  Calendar, Star, Filter, Sprout, Bell, ChevronDown 
 } from "lucide-react"; 
 import emailjs from "@emailjs/browser"; 
 import * as XLSX from 'xlsx'; 
@@ -59,7 +59,7 @@ const AdminDashboard = () => {
   const [activeChat, setActiveChat] = useState(null);
   const [chatType, setChatType] = useState(null); 
 
-  // Review State
+  // Review State 
   const [reviewRequest, setReviewRequest] = useState(null); 
   const [reviewData, setReviewData] = useState({ rating: 5, comment: "" });
 
@@ -130,6 +130,17 @@ const AdminDashboard = () => {
       curr.setDate(curr.getDate() + 1);
     }
     return dates;
+  };
+
+  // ✅ IMPROVED LOGOUT FUNCTION
+  const handleLogout = async () => {
+    try {
+        await auth.signOut();
+        navigate("/login", { replace: true });
+    } catch (error) {
+        console.error("Logout Error:", error);
+        showToast("Logout failed", "error");
+    }
   };
 
   useEffect(() => {
@@ -1589,7 +1600,7 @@ const AdminDashboard = () => {
         </nav>
         
         <div className="pt-4 border-t border-gray-800 mt-4 shrink-0">
-            <button onClick={() => auth.signOut()} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-sm font-bold">
+            <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-sm font-bold">
                 <LogOut size={18} /> Logout
             </button>
         </div>
