@@ -31,6 +31,7 @@ const AdminDashboard = () => {
 
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
+    setIsSidebarOpen(false); // Auto-close sidebar on mobile selection
   };
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -79,7 +80,7 @@ const AdminDashboard = () => {
   const [productImage, setProductImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
-   
+    
   const [schemeTitle, setSchemeTitle] = useState("");
   const [schemeDesc, setSchemeDesc] = useState("");
   const [schemeCategory, setSchemeCategory] = useState("Scheme");
@@ -241,7 +242,7 @@ const AdminDashboard = () => {
     try {
       const eqSnap = await getDocs(collection(db, "equipment"));
       setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-       
+        
       const reqSnap = await getDocs(query(collection(db, "equipment_requests"), orderBy("timestamp", "desc")));
       setEquipmentRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
@@ -312,12 +313,12 @@ const AdminDashboard = () => {
                         crop: row.crop || "Crop",
                         variety: row.variety || "Standard",        
                         market: row.market || "Mandi",
-                        district: row.district || "",              
-                        state: row.state || "",                    
+                        district: row.district || "",               
+                        state: row.state || "",                     
                         price: row.price ? `₹${row.price}/qt` : "₹0/qt",
                         min_price: row.min_price ? `₹${row.min_price}/qt` : "", 
                         max_price: row.max_price ? `₹${row.max_price}/qt` : "", 
-                        date: row.date || new Date().toLocaleDateString(),       
+                        date: row.date || new Date().toLocaleDateString(),        
                         change: row.change || "stable",
                         imageUrl: row.imageUrl || null, 
                         timestamp: new Date()
@@ -378,7 +379,7 @@ const AdminDashboard = () => {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Applications");
-     
+      
     XLSX.writeFile(workbook, "Scheme_Applications_Report.xlsx");
     showToast("Report Downloaded!");
   };
@@ -732,19 +733,19 @@ const AdminDashboard = () => {
 
     return (
     <div className="animate-fade-up">
-      <div className="flex justify-between items-center mb-6">
-         <h2 className="text-3xl font-bold text-gray-800">Verified Products</h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Verified Products</h2>
          
-         <div className="flex gap-2">
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
            {/* ✅ Search Input for Products */}
-           <div className="relative">
+           <div className="relative flex-1 md:flex-none">
               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
               <input 
                 type="text" 
                 placeholder="Search products..." 
                 value={moduleSearch}
                 onChange={(e) => setModuleSearch(e.target.value)}
-                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
               />
            </div>
 
@@ -755,7 +756,7 @@ const AdminDashboard = () => {
                   className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
               >
                   {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                  Delete ({selectedItems.size})
+                  <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
               </button>
            )}
            
@@ -764,7 +765,7 @@ const AdminDashboard = () => {
               className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
               title="Delete ALL products in database"
            >
-              <AlertTriangle size={18} /> Wipe All
+              <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
            </button>
 
            <div>
@@ -781,13 +782,13 @@ const AdminDashboard = () => {
                   className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
               >
                   {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
-                  Bulk Import
+                  <span className="hidden sm:inline">Bulk Import</span>
               </button>
            </div>
          </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
         <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add New Batch</h3>
         <div className="flex flex-col md:flex-row gap-4 items-start">
           <div className="flex-1 w-full space-y-3">
@@ -800,7 +801,7 @@ const AdminDashboard = () => {
                   <input type="file" accept="image/*" className="hidden" onChange={handleProductImageChange} />
               </label>
           </div>
-          <button onClick={handleAddProduct} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-[128px] md:h-32 transition-colors shadow-sm">
+          <button onClick={handleAddProduct} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-12 md:h-32 transition-colors shadow-sm">
             {uploading ? <Loader className="animate-spin" /> : "Verify & Add"}
           </button>
         </div>
@@ -868,19 +869,19 @@ const AdminDashboard = () => {
 
     return (
     <div className="animate-fade-up">
-      <div className="flex justify-between items-center mb-6">
-         <h2 className="text-3xl font-bold text-gray-800">Manage Schemes</h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Manage Schemes</h2>
          
-         <div className="flex gap-2">
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
             {/* ✅ Search Input for Schemes */}
-            <div className="relative">
+            <div className="relative flex-1 md:flex-none">
                 <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                 <input 
                     type="text" 
                     placeholder="Search active schemes..." 
                     value={moduleSearch}
                     onChange={(e) => setModuleSearch(e.target.value)}
-                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
                 />
             </div>
 
@@ -891,7 +892,7 @@ const AdminDashboard = () => {
                     className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
                 >
                     {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                    Delete ({selectedItems.size})
+                    <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
                 </button>
             )}
 
@@ -899,7 +900,7 @@ const AdminDashboard = () => {
                 onClick={() => handleWipeCollection("schemes")}
                 className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
             >
-                <AlertTriangle size={18} /> Wipe All
+                <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
             </button>
 
             <div>
@@ -916,7 +917,7 @@ const AdminDashboard = () => {
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
                 >
                     {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
-                    Bulk Import
+                    <span className="hidden sm:inline">Import</span>
                 </button>
             </div>
          </div>
@@ -982,7 +983,7 @@ const AdminDashboard = () => {
           <div key={s.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-start transition ${selectedItems.has(s.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
             <div className="flex gap-4">
               <button onClick={() => toggleSelection(s.id)} className="text-gray-400 hover:text-blue-600 mt-1">
-                 {selectedItems.has(s.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                  {selectedItems.has(s.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
               </button>
               {s.imageUrl && <img src={s.imageUrl} alt={s.title} className="w-16 h-16 object-cover rounded-lg border bg-gray-50" />}
               <div>
@@ -1046,31 +1047,31 @@ const AdminDashboard = () => {
 
     return (
     <div className="animate-fade-up">
-      <div className="flex justify-between items-center mb-6">
-         <h2 className="text-3xl font-bold text-gray-800">Scheme Applications</h2>
-         <div className="flex gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Scheme Applications</h2>
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
              {/* ✅ Search Input for Applications */}
-             <div className="relative">
+             <div className="relative flex-1 md:flex-none">
                 <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                 <input 
                     type="text" 
                     placeholder="Search applications..." 
                     value={moduleSearch}
                     onChange={(e) => setModuleSearch(e.target.value)}
-                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
                 />
              </div>
              <button 
                 onClick={() => handleWipeCollection("applications")}
                 className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
              >
-                <AlertTriangle size={18} /> Wipe All
+                <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
              </button>
              <button 
                 onClick={downloadApplicationsExcel}
                 className="flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded-xl font-bold hover:bg-green-800 transition shadow-md"
              >
-                <Download size={18} /> Export Report
+                <Download size={18} /> <span className="hidden sm:inline">Export</span>
              </button>
          </div>
       </div>
@@ -1126,7 +1127,7 @@ const AdminDashboard = () => {
 
             <div className="flex justify-between items-start pl-8">
                 <div className="flex-1 pr-8">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status==="Resolved"?"bg-green-50 border-green-100 text-green-700":"bg-yellow-50 border-yellow-100 text-yellow-700"}`}>{c.status}</span>
                         <h4 className="font-bold text-lg text-gray-800">{c.subject}</h4>
                         {/* ✅ Formatted Date Added */}
@@ -1135,7 +1136,7 @@ const AdminDashboard = () => {
                         </span>
                     </div>
                     <p className="text-gray-700 text-sm mb-3 bg-gray-50 p-3 rounded-lg border border-gray-100">"{c.message}"</p>
-                    <div className="flex gap-4 text-xs text-gray-400 items-center">
+                    <div className="flex flex-wrap gap-4 text-xs text-gray-400 items-center">
                         <span className="flex items-center gap-1"><Users size={12}/> {c.farmerName}</span>
                         <span className="flex items-center gap-1"><Mail size={12}/> {c.email}</span>
                         {c.urgency && (
@@ -1191,21 +1192,21 @@ const AdminDashboard = () => {
     return (
         <div className="animate-fade-up space-y-12">
             <div>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
                         <Clock className="text-yellow-500" /> Pending Complaints 
                         <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">{pendingComplaints.length}</span>
                     </h2>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
                         {/* ✅ Search Input for Complaints */}
-                        <div className="relative">
+                        <div className="relative flex-1 md:flex-none">
                             <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                             <input 
                                 type="text" 
                                 placeholder="Search complaints..." 
                                 value={moduleSearch}
                                 onChange={(e) => setModuleSearch(e.target.value)}
-                                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
                             />
                         </div>
 
@@ -1216,14 +1217,14 @@ const AdminDashboard = () => {
                                 className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
                             >
                                 {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                                Delete ({selectedItems.size})
+                                <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
                             </button>
                         )}
                         <button 
                             onClick={() => handleWipeCollection("complaints")}
                             className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
                         >
-                            <AlertTriangle size={18} /> Wipe All
+                            <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
                         </button>
                     </div>
                 </div>
@@ -1273,12 +1274,12 @@ const AdminDashboard = () => {
   const renderEquipment = () => {
     // ✅ Filter Equipment Logic
     const filteredEquipment = equipmentList.filter(e => 
-        e.name.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        e.name.toLowerCase().includes(moduleSearch.toLowerCase()) || 
         e.type.toLowerCase().includes(moduleSearch.toLowerCase())
     );
 
     const filteredRequests = equipmentRequests.filter(r => 
-        r.equipmentName?.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        r.equipmentName?.toLowerCase().includes(moduleSearch.toLowerCase()) || 
         r.requesterName?.toLowerCase().includes(moduleSearch.toLowerCase())
     );
 
@@ -1289,20 +1290,20 @@ const AdminDashboard = () => {
 
     return (
     <div className="animate-fade-up">
-      <div className="flex justify-between items-center mb-6">
-         <h2 className="text-3xl font-bold text-gray-800">Equipment Listings</h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Equipment Listings</h2>
          
-         <div className="flex gap-2">
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
            {/* ✅ Search Input for Equipment */}
-           <div className="relative">
-                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder="Search equipment & requests..." 
-                    value={moduleSearch}
-                    onChange={(e) => setModuleSearch(e.target.value)}
-                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
-                />
+           <div className="relative flex-1 md:flex-none">
+               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+               <input 
+                   type="text" 
+                   placeholder="Search equipment..." 
+                   value={moduleSearch}
+                   onChange={(e) => setModuleSearch(e.target.value)}
+                   className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+               />
             </div>
 
             {selectedItems.size > 0 && (
@@ -1312,7 +1313,7 @@ const AdminDashboard = () => {
                     className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
                 >
                     {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                    Delete ({selectedItems.size})
+                    <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
                 </button>
             )}
 
@@ -1320,7 +1321,7 @@ const AdminDashboard = () => {
                 onClick={() => handleWipeCollection("equipment")}
                 className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
             >
-                <AlertTriangle size={18} /> Wipe All
+                <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
             </button>
 
             {/* Bulk Upload for Equipment */}
@@ -1338,7 +1339,7 @@ const AdminDashboard = () => {
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
                 >
                     {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
-                    Bulk Import
+                    <span className="hidden sm:inline">Bulk Import</span>
                 </button>
             </div>
          </div>
@@ -1411,9 +1412,9 @@ const AdminDashboard = () => {
                          </button>
                          {/* ✅ Rate Button */}
                          {req.status === "Completed" && !hasReviewed && (
-                            <button onClick={() => setReviewRequest(req)} className="w-full border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-yellow-50 flex items-center justify-center gap-2 transition">
-                                <Star size={14}/> Rate User
-                            </button>
+                           <button onClick={() => setReviewRequest(req)} className="w-full border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-yellow-50 flex items-center justify-center gap-2 transition">
+                               <Star size={14}/> Rate User
+                           </button>
                          )}
                      </div>
                    );
@@ -1522,7 +1523,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans">
        
-       {/* --- NEW HEADER BAR --- */}
+       {/* --- RESPONSIVE HEADER BAR --- */}
        <div className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 h-20 flex items-center justify-between px-4 md:px-6 shadow-sm">
           {/* Logo Area */}
           <div className="flex items-center gap-3">
@@ -1530,8 +1531,8 @@ const AdminDashboard = () => {
                 <Sprout size={24} />
              </div>
              <div>
-                <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Kisan<span className="text-green-600">Sahayak</span></h1>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admin Console</span>
+                <h1 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-none">Kisan<span className="text-green-600">Sahayak</span></h1>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden xs:block">Admin Console</span>
              </div>
           </div>
 
@@ -1554,31 +1555,42 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Mobile Toggle Button (High Z-Index Fix) */}
+      {/* --- RESPONSIVE SIDEBAR --- */}
+      
+      {/* Mobile Toggle Button (Visible only on mobile) */}
       <button 
         onClick={() => setIsSidebarOpen(true)}
-        className="md:hidden fixed bottom-6 left-6 z-[100] bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-95"
+        className="md:hidden fixed bottom-6 left-6 z-[100] bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-95 flex items-center justify-center"
         title="Open Admin Menu"
       >
         <Menu size={24} />
       </button>
 
-      {/* Sidebar */}
+      {/* Mobile Overlay (Backdrop) */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)} 
+          className="fixed inset-0 bg-black/60 z-[90] md:hidden backdrop-blur-sm transition-opacity"
+        ></div>
+      )}
+
+      {/* Sidebar Container */}
       <div className={`
         fixed inset-y-0 left-0 z-[100] w-64 bg-slate-900 text-white p-6 
-        transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none
+        transform transition-transform duration-300 ease-in-out shadow-2xl 
+        md:translate-x-0 md:fixed md:top-20 md:bottom-0 md:left-0 md:z-30 md:shadow-none
+        flex flex-col h-full md:h-[calc(100vh-5rem)] border-r border-gray-800
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-        md:translate-x-0 md:fixed md:top-20 md:bottom-0 md:left-0 md:z-30
-        flex flex-col h-[calc(100vh-5rem)] border-r border-gray-800 mt-0 md:mt-0
       `}>
+        {/* Mobile Sidebar Header */}
         <div className="flex justify-between items-center mb-8 shrink-0 md:hidden">
-            <h2 className="text-xl font-bold text-green-400 tracking-tight flex items-center gap-2"><Package size={24}/> Admin Panel</h2>
+            <h2 className="text-xl font-bold text-green-400 tracking-tight flex items-center gap-2"><Package size={24}/> Menu</h2>
             <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-white transition">
               <X size={24} />
             </button>
         </div>
 
-        <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 custom-scrollbar mt-4 md:mt-0">
+        <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {[
             { id: "products", label: "Products", icon: Package },
             { id: "schemes", label: "Schemes", icon: ScrollText },
@@ -1591,7 +1603,7 @@ const AdminDashboard = () => {
           ].map((item) => (
             <button 
               key={item.id}
-              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} 
+              onClick={() => setActiveTab(item.id)} 
               className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all text-sm font-medium ${activeTab === item.id ? "bg-green-600 text-white shadow-lg shadow-green-900/20" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
             >
               <item.icon size={18} /> {item.label}
@@ -1606,37 +1618,28 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Mobile Overlay */}
-      {isSidebarOpen && (
-        <div 
-          onClick={() => setIsSidebarOpen(false)} 
-          className="fixed inset-0 bg-black/60 z-[90] md:hidden backdrop-blur-sm"
-        ></div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 p-4 lg:p-8 pb-24 mt-20 overflow-y-auto md:ml-64 max-w-7xl mx-auto w-full">
+      {/* --- MAIN CONTENT AREA --- */}
+      <div className="flex-1 px-4 py-6 md:p-8 pb-24 mt-20 md:ml-64 w-full max-w-[100vw] overflow-x-hidden min-h-screen transition-all duration-300">
         
         {activeTab === "products" && renderProducts()}
         {activeTab === "schemes" && renderSchemes()}
         {activeTab === "applications" && renderApplications()}
         {activeTab === "complaints" && renderComplaints()}
         {activeTab === "equipment" && renderEquipment()} 
-
         {activeTab === "farmers" && (
              <div className="animate-fade-up">
-               <div className="flex justify-between items-center mb-6">
-                 <h2 className="text-3xl font-bold text-gray-800">Registered Farmers</h2>
-                 <div className="flex gap-2">
+               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Registered Farmers</h2>
+                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     {/* ✅ Search Input for Farmers */}
-                    <div className="relative">
+                    <div className="relative flex-1 md:flex-none">
                         <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                         <input 
                             type="text" 
                             placeholder="Search farmers..." 
                             value={moduleSearch}
                             onChange={(e) => setModuleSearch(e.target.value)}
-                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
                         />
                     </div>
                     {selectedItems.size > 0 && (
@@ -1646,7 +1649,7 @@ const AdminDashboard = () => {
                             className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
                         >
                             {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                            Delete ({selectedItems.size})
+                            <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
                         </button>
                     )}
                     {/* 🆕 Wipe All Button */}
@@ -1654,7 +1657,7 @@ const AdminDashboard = () => {
                         onClick={() => handleWipeCollection("users")}
                         className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
                     >
-                        <AlertTriangle size={18} /> Wipe All
+                        <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
                     </button>
                  </div>
                </div>
@@ -1706,22 +1709,22 @@ const AdminDashboard = () => {
                </div>
              </div>
         )}
-
+        
         {activeTab === "market" && (
             <div className="animate-fade-up">
-              <div className="flex justify-between items-center mb-6">
-                 <h2 className="text-3xl font-bold text-gray-800">Manage Market Prices</h2>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Manage Market Prices</h2>
                  
-                 <div className="flex gap-2">
+                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     {/* ✅ Search Input for Market */}
-                    <div className="relative">
+                    <div className="relative flex-1 md:flex-none">
                         <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                         <input 
                             type="text" 
                             placeholder="Search market..." 
                             value={moduleSearch}
                             onChange={(e) => setModuleSearch(e.target.value)}
-                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
                         />
                     </div>
                     {selectedItems.size > 0 && (
@@ -1731,7 +1734,7 @@ const AdminDashboard = () => {
                             className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
                         >
                             {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                            Delete ({selectedItems.size})
+                            <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
                         </button>
                     )}
 
@@ -1740,7 +1743,7 @@ const AdminDashboard = () => {
                         onClick={() => handleWipeCollection("market_prices")}
                         className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
                     >
-                        <AlertTriangle size={18} /> Wipe All
+                        <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
                     </button>
 
                     {/* 🆕 Bulk Upload Button */}
@@ -1758,7 +1761,7 @@ const AdminDashboard = () => {
                             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
                         >
                             {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
-                            Bulk Import
+                            <span className="hidden sm:inline">Bulk Import</span>
                         </button>
                     </div>
                  </div>
@@ -1778,16 +1781,18 @@ const AdminDashboard = () => {
                         </select>
                     </div>
                     {/* 🆕 Market Image Input */}
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <label className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 transition-colors">
                             {marketImagePreview ? <img src={marketImagePreview} alt="Preview" className="w-8 h-8 rounded object-cover" /> : <ImageIcon size={20} className="text-gray-400" />}
                             <span className="text-sm text-gray-500">{marketImagePreview ? "Change Image" : "Upload Image"}</span>
                             <input type="file" accept="image/*" className="hidden" onChange={handleMarketImageChange} />
                         </label>
-                        <button onClick={handleAddOrUpdateMarketPrice} disabled={uploading} className={`px-6 py-2 rounded-xl font-bold text-white transition shadow-sm ${editMarketId ? "bg-orange-500 hover:bg-orange-600" : "bg-green-600 hover:bg-green-700"}`}>
-                            {uploading ? <Loader className="animate-spin" size={18}/> : (editMarketId ? "Update" : "Add")}
-                        </button>
-                        {editMarketId && <button onClick={() => { setEditMarketId(null); setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); setMarketImage(null); setMarketImagePreview(null); }} className="px-4 text-gray-500 font-bold">Cancel</button>}
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={handleAddOrUpdateMarketPrice} disabled={uploading} className={`flex-1 sm:flex-none px-6 py-2 rounded-xl font-bold text-white transition shadow-sm ${editMarketId ? "bg-orange-500 hover:bg-orange-600" : "bg-green-600 hover:bg-green-700"}`}>
+                                {uploading ? <Loader className="animate-spin" size={18}/> : (editMarketId ? "Update" : "Add")}
+                            </button>
+                            {editMarketId && <button onClick={() => { setEditMarketId(null); setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); setMarketImage(null); setMarketImagePreview(null); }} className="px-4 text-gray-500 font-bold">Cancel</button>}
+                        </div>
                     </div>
                 </div>
               </div>
@@ -1822,9 +1827,9 @@ const AdminDashboard = () => {
                       <div className="text-right">
                         <p className="font-bold text-lg text-green-600">{m.price}</p>
                         {/* ✅ Formatted Date Added */}
-                        <p className="text-[10px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                        <span className="text-[10px] text-gray-400 mt-1 flex items-center justify-end gap-1">
                             <Clock size={10}/> {formatTime(m.timestamp)}
-                        </p>
+                        </span>
                         <div className="flex gap-2 justify-end mt-1">
                           <button onClick={() => startEditPrice(m)} className="text-gray-400 hover:text-blue-500 transition"><Edit2 size={16}/></button>
                           <button onClick={() => handleDelete("market_prices", m.id)} className="text-gray-400 hover:text-red-500 transition"><Trash2 size={16}/></button>
@@ -1838,18 +1843,18 @@ const AdminDashboard = () => {
 
         {activeTab === "forum" && (
            <div className="animate-fade-up">
-             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-800">Community Moderation</h2>
-                <div className="flex gap-2">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Community Moderation</h2>
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     {/* ✅ Search Input for Forum */}
-                    <div className="relative">
+                    <div className="relative flex-1 md:flex-none">
                         <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                         <input 
                             type="text" 
                             placeholder="Search posts..." 
                             value={moduleSearch}
                             onChange={(e) => setModuleSearch(e.target.value)}
-                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-64 text-sm"
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
                         />
                     </div>
                     {selectedItems.size > 0 && (
@@ -1859,7 +1864,7 @@ const AdminDashboard = () => {
                             className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
                         >
                             {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
-                            Delete ({selectedItems.size})
+                            <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
                         </button>
                     )}
                     {/* 🆕 Wipe All Button */}
@@ -1867,7 +1872,7 @@ const AdminDashboard = () => {
                         onClick={() => handleWipeCollection("forum_posts")}
                         className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
                     >
-                        <AlertTriangle size={18} /> Wipe All
+                        <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
                     </button>
                 </div>
              </div>
@@ -1909,10 +1914,9 @@ const AdminDashboard = () => {
              </div>
            </div>
         )}
-
       </div>
 
-      {/* ✅ Conditionally Render Chat Based on Type */}
+      {/* Chat Components */}
       {activeChat && chatType === "general" && (
         <ChatInterface 
           chatId={`chat_${activeChat.id}`} 
