@@ -371,9 +371,11 @@ const CropDoctor = () => {
                               </p>
                             </div>
                           </div>
+                          
+                          {/* FIXED DELETE BUTTON: Visible on mobile, hover-only on desktop */}
                           <button 
                             onClick={(e) => deleteHistoryItem(item.id, e)}
-                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                           >
                             <Trash2 size={18} />
                           </button>
