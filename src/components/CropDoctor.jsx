@@ -4,7 +4,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/ge
 import { 
   Camera, Upload, ScanLine, Leaf, AlertTriangle, 
   Sprout, Loader2, X, Beaker, Activity, CheckCircle2, ChevronRight,
-  History, Trash2, Calendar
+  History, Trash2, Calendar, ArrowRight, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -101,7 +101,6 @@ const CropDoctor = () => {
   const loadHistoryItem = (item) => {
     setResult(item);
     setShowHistory(false); // Switch back to result view
-    // Note: We don't restore the image preview as we aren't storing images in DB to save costs
     setPreview(null); 
     setImage(null);
   };
@@ -190,248 +189,291 @@ const CropDoctor = () => {
   };
 
   return (
-    <div className="pt-24 md:pt-32 min-h-screen bg-slate-50 font-sans p-4 md:p-8 flex justify-center pb-20">
+    <div className="pt-24 pb-12 min-h-screen bg-slate-50 font-sans px-4 sm:px-6 lg:px-8">
       
-      <div className="max-w-6xl w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 flex flex-col lg:flex-row min-h-[600px]">
+      {/* Header Section */}
+      <div className="max-w-7xl mx-auto mb-8 md:mb-12 text-center md:text-left">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-sm font-semibold mb-4 border border-emerald-200"
+        >
+          <Sparkles size={14} /> AI-Powered V2.0
+        </motion.div>
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-3"
+        >
+          Crop<span className="text-emerald-600">Doctor</span>
+        </motion.h1>
+        <motion.p 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-lg text-slate-500 max-w-2xl"
+        >
+          Upload a photo of your crop to instantly identify diseases and get expert treatment advice.
+        </motion.p>
+      </div>
+
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-8 items-start">
         
-        {/* LEFT PANEL: Upload & Camera (Dark Mode Style) */}
-        <div className="lg:w-[45%] bg-slate-900 p-8 flex flex-col relative overflow-hidden">
-          {/* Background Decor */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-[60px] pointer-events-none"></div>
+        {/* LEFT COLUMN: Input Section */}
+        <div className="lg:col-span-5 w-full">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden relative group"
+          >
+            {/* Decorative Header */}
+            <div className="bg-slate-900 p-6 sm:p-8 text-white relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/20 rounded-full blur-[50px] pointer-events-none translate-x-10 -translate-y-10"></div>
+               <div className="relative z-10">
+                 <h2 className="text-xl font-bold flex items-center gap-2">
+                   <Camera className="text-emerald-400" /> Upload Scan
+                 </h2>
+                 <p className="text-slate-400 text-sm mt-1">Take a clear photo of the affected leaf.</p>
+               </div>
+            </div>
 
-          <div className="relative z-10 flex-1 flex flex-col">
-            <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-              <Camera className="text-emerald-400" /> Crop Doctor
-            </h2>
-            <p className="text-slate-400 mb-8">AI-powered plant disease diagnosis in seconds.</p>
-
-            {/* Upload Area */}
-            <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="p-6 sm:p-8">
+              {/* Image Preview / Dropzone */}
               <AnimatePresence mode="wait">
                 {!preview ? (
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }} 
-                    animate={{ opacity: 1, scale: 1 }} 
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    whileHover={{ scale: 1.02 }}
-                    className="w-full h-80 border-2 border-dashed border-slate-700 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-800/50 transition-all group relative overflow-hidden"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    whileHover={{ scale: 1.01 }}
                     onClick={() => fileInputRef.current.click()}
+                    className="w-full aspect-[4/3] rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-emerald-50/50 hover:border-emerald-300 transition-all cursor-pointer flex flex-col items-center justify-center gap-4 group/drop"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-black/20 z-10">
-                      <Upload size={32} className="text-emerald-400" />
+                    <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center group-hover/drop:scale-110 transition-transform text-emerald-600">
+                      <Upload size={28} />
                     </div>
-                    <p className="text-slate-300 font-medium z-10">Click to Upload Photo</p>
-                    <p className="text-xs text-slate-500 mt-2 z-10">JPG, PNG supported</p>
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageSelect} />
+                    <div className="text-center">
+                      <p className="font-bold text-slate-700">Click to Upload</p>
+                      <p className="text-xs text-slate-400 mt-1">JPG, PNG supported</p>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div 
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} 
-                    className="relative w-full h-80 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 group"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="w-full aspect-[4/3] rounded-3xl relative overflow-hidden shadow-lg border border-slate-100 bg-black"
                   >
-                    <img src={preview} alt="Crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    <img src={preview} alt="Preview" className="w-full h-full object-cover" />
                     
-                    {/* Scanning Overlay */}
-                    {loading && (
-                      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center z-20">
-                        <Loader2 className="animate-spin text-emerald-400 mb-2" size={48} />
-                        <span className="text-white font-bold tracking-widest text-sm animate-pulse">ANALYZING...</span>
-                      </div>
+                    {/* Controls */}
+                    {!loading && (
+                       <button 
+                         onClick={(e) => { e.stopPropagation(); clearAll(); }}
+                         className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-red-500 text-white rounded-full backdrop-blur-md transition-all z-20"
+                       >
+                         <X size={18} />
+                       </button>
                     )}
 
-                    {!loading && (
-                      <button 
-                        onClick={clearAll} 
-                        className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-red-500 text-white rounded-full backdrop-blur-md transition-all hover:rotate-90"
-                      >
-                        <X size={20} />
-                      </button>
+                    {/* Scanning Overlay */}
+                    {loading && (
+                      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+                        <Loader2 className="animate-spin text-emerald-400 w-12 h-12 mb-3" />
+                        <span className="text-white font-bold tracking-widest text-sm animate-pulse">ANALYZING...</span>
+                      </div>
                     )}
                   </motion.div>
                 )}
               </AnimatePresence>
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageSelect} />
+
+              {/* Analyze Button */}
+              {preview && !result && !loading && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={handleAnalyze}
+                  className="w-full mt-6 py-4 bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all"
+                >
+                  <ScanLine size={20} /> Identify Disease
+                </motion.button>
+              )}
+
+              {/* Error Message */}
+              {error && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 flex items-center gap-3 text-sm font-medium">
+                  <AlertTriangle size={18} className="shrink-0" />
+                  {error}
+                </motion.div>
+              )}
             </div>
-
-            {/* Action Button */}
-            {preview && !loading && !result && (
-              <motion.button 
-                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleAnalyze}
-                className="mt-8 w-full py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-900/30 transition-all flex items-center justify-center gap-3 text-lg"
-              >
-                <ScanLine size={22} /> Diagnose Disease
-              </motion.button>
-            )}
-
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-mono flex items-center gap-3"
-              >
-                <AlertTriangle size={16} /> {error}
-              </motion.div>
-            )}
-          </div>
+          </motion.div>
         </div>
 
-        {/* RIGHT PANEL: Results or History */}
-        <div className="lg:w-[55%] bg-white p-8 lg:p-12 relative flex flex-col">
+        {/* RIGHT COLUMN: Results & History */}
+        <div className="lg:col-span-7 w-full flex flex-col h-full">
           
-          {/* History Toggle Button (Absolute Top Right) */}
+          {/* Controls Bar */}
           {user && (
-            <button 
-              onClick={() => setShowHistory(!showHistory)}
-              className="absolute top-8 right-8 flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors font-medium text-sm z-20"
-            >
-              <History size={18} /> {showHistory ? "Back to Scan" : "History"}
-            </button>
-          )}
-
-          {/* CONTENT SWITCHER: HISTORY OR RESULTS */}
-          {showHistory ? (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-              className="flex-1 flex flex-col h-full"
-            >
-              <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                <Calendar className="text-emerald-500" /> Past Diagnoses
-              </h2>
-              
-              {historyLoading ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-emerald-500" /></div>
-              ) : history.length === 0 ? (
-                <div className="text-center py-10 text-slate-400">No history found.</div>
-              ) : (
-                <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                  {history.map((item) => (
-                    <div 
-                      key={item.id}
-                      onClick={() => loadHistoryItem(item)}
-                      className="p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition cursor-pointer flex justify-between items-center group"
-                    >
-                      <div>
-                        <h4 className="font-bold text-slate-700">{item.name}</h4>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                          <span className="flex items-center gap-1"><Calendar size={12}/> {item.date}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            item.severity?.toLowerCase().includes("high") ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
-                          }`}>
-                            {item.severity}
-                          </span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={(e) => deleteHistoryItem(item.id, e)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          ) : result ? (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }} 
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="flex-1 flex flex-col h-full"
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-green-100 text-green-700 rounded-xl shadow-sm">
-                  <Activity size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Diagnosis Complete</h3>
-                  <h2 className="text-3xl font-black text-slate-800 leading-tight">{result.name}</h2>
-                </div>
-              </div>
-
-              {/* Severity Card */}
-              {result.severity && (
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className={`mb-8 p-5 rounded-2xl border-l-8 flex items-center justify-between shadow-sm ${
-                    result.severity.toLowerCase().includes("high") 
-                    ? "bg-red-50 border-red-500 text-red-900" 
-                    : result.severity.toLowerCase().includes("medium")
-                    ? "bg-orange-50 border-orange-500 text-orange-900"
-                    : "bg-green-50 border-green-500 text-green-900"
-                  }`}
-                >
-                  <div>
-                    <p className="text-xs font-bold uppercase opacity-70 mb-1">Severity Level</p>
-                    <p className="text-xl font-bold flex items-center gap-2">
-                      {result.severity}
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-white/50 border border-black/5 uppercase tracking-wide">
-                        {result.severity.toLowerCase().includes("high") ? "Urgent" : "Monitor"}
-                      </span>
-                    </p>
-                  </div>
-                  <AlertTriangle size={32} className="opacity-40"/>
-                </motion.div>
-              )}
-
-              <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                {/* Organic Cure */}
-                <motion.div 
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="group"
-                >
-                  <h4 className="flex items-center gap-2 font-bold text-emerald-700 mb-3 text-lg">
-                    <Sprout size={20} /> Organic Solution
-                  </h4>
-                  <div className="p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100 group-hover:border-emerald-300 group-hover:bg-emerald-50 transition-all shadow-sm group-hover:shadow-md">
-                    <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{result.organic || "No organic cure data available."}</p>
-                  </div>
-                </motion.div>
-
-                {/* Chemical Cure */}
-                <motion.div 
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="group"
-                >
-                  <h4 className="flex items-center gap-2 font-bold text-blue-700 mb-3 text-lg">
-                    <Beaker size={20} /> Chemical Treatment
-                  </h4>
-                  <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 group-hover:border-blue-300 group-hover:bg-blue-50 transition-all shadow-sm group-hover:shadow-md">
-                    <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{result.chemical || "No chemical cure data available."}</p>
-                  </div>
-                </motion.div>
-              </div>
-
-              <motion.button 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-                onClick={clearAll} 
-                className="mt-6 text-slate-400 hover:text-emerald-600 font-medium flex items-center justify-center gap-2 transition-colors mx-auto hover:underline underline-offset-4"
+            <div className="flex justify-end mb-6">
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  showHistory 
+                  ? "bg-slate-800 text-white shadow-lg" 
+                  : "bg-white text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 shadow-sm border border-slate-100"
+                }`}
               >
-                <Camera size={18} /> Scan Another Plant
-              </motion.button>
-
-            </motion.div>
-          ) : (
-            // Empty State
-            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 p-6">
-              <div className="w-32 h-32 bg-slate-100 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                <Leaf size={64} className="text-slate-300" />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-400 mb-2">Ready to Diagnose</h3>
-              <p className="text-slate-400 max-w-xs mx-auto text-sm leading-relaxed">
-                Upload a clear photo of the affected plant leaf. Our AI will identify diseases and suggest cures instantly.
-              </p>
+                {showHistory ? <ScanLine size={16} /> : <History size={16} />}
+                {showHistory ? "Back to Result" : "View History"}
+              </button>
             </div>
           )}
+
+          <div className="flex-1 bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white shadow-sm p-1">
+            <AnimatePresence mode="wait">
+              {showHistory ? (
+                // HISTORY VIEW
+                <motion.div 
+                  key="history"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  className="p-6 h-full flex flex-col"
+                >
+                  <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Calendar className="text-emerald-500" /> Diagnosis History
+                  </h3>
+                  
+                  {historyLoading ? (
+                    <div className="flex-1 flex justify-center items-center"><Loader2 className="animate-spin text-emerald-500" /></div>
+                  ) : history.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-12">
+                      <History size={48} className="mb-4 opacity-20" />
+                      <p>No past diagnoses found.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {history.map((item) => (
+                        <div 
+                          key={item.id}
+                          onClick={() => loadHistoryItem(item)}
+                          className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 hover:bg-emerald-50/30 transition-all cursor-pointer flex justify-between items-center group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
+                              item.severity?.toLowerCase().includes('high') ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                            }`}>
+                              {item.name.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{item.name}</h4>
+                              <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                                <span>{item.date}</span>
+                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                <span className={`${item.severity?.toLowerCase().includes('high') ? 'text-red-500' : 'text-green-500'}`}>{item.severity}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={(e) => deleteHistoryItem(item.id, e)}
+                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ) : result ? (
+                // RESULTS VIEW
+                <motion.div 
+                  key="result"
+                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+                  className="p-6 md:p-8"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-100 pb-6">
+                    <div>
+                      <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs uppercase tracking-wider mb-2">
+                        <Activity size={16} /> Diagnosis Complete
+                      </div>
+                      <h2 className="text-3xl md:text-4xl font-black text-slate-800">{result.name}</h2>
+                    </div>
+                    
+                    {result.severity && (
+                       <div className={`px-5 py-3 rounded-2xl border flex items-center gap-3 ${
+                          result.severity.toLowerCase().includes("high") 
+                          ? "bg-red-50 border-red-200 text-red-700" 
+                          : result.severity.toLowerCase().includes("medium")
+                          ? "bg-orange-50 border-orange-200 text-orange-700"
+                          : "bg-green-50 border-green-200 text-green-700"
+                       }`}>
+                         <div className="text-right">
+                           <p className="text-[10px] uppercase font-bold opacity-70">Severity</p>
+                           <p className="text-lg font-bold leading-none">{result.severity}</p>
+                         </div>
+                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            result.severity.toLowerCase().includes("high") ? "bg-white/50" : "bg-white/50"
+                         }`}>
+                           <AlertTriangle size={20} />
+                         </div>
+                       </div>
+                    )}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Organic Cure Card */}
+                    <motion.div 
+                      initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+                      className="bg-emerald-50/50 border border-emerald-100 p-6 rounded-[1.5rem] relative overflow-hidden group"
+                    >
+                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                         <Sprout size={80} />
+                      </div>
+                      <h3 className="font-bold text-emerald-800 text-lg mb-3 flex items-center gap-2">
+                        <span className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center"><Sprout size={16} /></span>
+                        Organic Solution
+                      </h3>
+                      <p className="text-slate-700 text-sm leading-relaxed relative z-10">{result.organic || "No organic cure available."}</p>
+                    </motion.div>
+
+                    {/* Chemical Cure Card */}
+                    <motion.div 
+                      initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+                      className="bg-blue-50/50 border border-blue-100 p-6 rounded-[1.5rem] relative overflow-hidden group"
+                    >
+                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                         <Beaker size={80} />
+                      </div>
+                      <h3 className="font-bold text-blue-800 text-lg mb-3 flex items-center gap-2">
+                        <span className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center"><Beaker size={16} /></span>
+                        Chemical Treatment
+                      </h3>
+                      <p className="text-slate-700 text-sm leading-relaxed relative z-10">{result.chemical || "No chemical cure available."}</p>
+                    </motion.div>
+                  </div>
+                  
+                  <div className="mt-8 flex justify-center">
+                    <button 
+                      onClick={clearAll} 
+                      className="text-slate-400 hover:text-slate-600 flex items-center gap-2 text-sm font-medium transition-colors hover:underline underline-offset-4"
+                    >
+                      Analyze Another Plant <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                // EMPTY STATE
+                <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-white rounded-[2rem]">
+                  <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 relative">
+                    <div className="absolute inset-0 border-4 border-slate-100 rounded-full animate-[spin_8s_linear_infinite] border-t-emerald-200"></div>
+                    <Leaf size={40} className="text-slate-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800 mb-2">Ready to Diagnose</h3>
+                  <p className="text-slate-500 max-w-sm mx-auto text-sm leading-relaxed">
+                    Our AI model is ready to analyze your crops. Upload a photo on the left to get started with instant disease detection.
+                  </p>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
       </div>
