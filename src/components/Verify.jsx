@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   ShieldCheck, XCircle, ScanLine, Camera, X, 
   CheckCircle2, QrCode, ArrowRight, Loader2, Package, AlertTriangle,
-  Sparkles, Brain, Sprout, ShieldAlert, Zap, Search
+  Sparkles, Brain, Sprout, ShieldAlert, Zap, Search, Upload
 } from "lucide-react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,8 +23,9 @@ const Verify = () => {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   
-  // Ref to hold the scanner instance
+  // Refs
   const scannerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // --- 1. AI Analysis Logic ---
   const fetchAIAnalysis = async (productName) => {
@@ -61,7 +62,7 @@ const Verify = () => {
   const verifyCode = async (scannedValue) => {
     if (!scannedValue) return;
     
-    // Stop scanning immediately
+    // Stop scanning immediately if camera is active
     if (scannerRef.current) {
         try {
             await scannerRef.current.stop();
@@ -80,19 +81,16 @@ const Verify = () => {
     try {
       let formattedId = String(scannedValue).trim();
 
-      // --- CRITICAL FIX: Handle URLs vs Pure IDs ---
-      // If it's a URL (e.g. https://qr-codes.io/NnFd15), extract the last part
+      // Handle URLs vs Pure IDs
       if (formattedId.includes("://") || formattedId.includes("/")) {
           const parts = formattedId.split("/");
-          // Get the last segment that isn't empty
           formattedId = parts.filter(p => p.length > 0).pop();
       }
 
-      // Final cleanup
       formattedId = formattedId.toUpperCase().trim();
       
       console.log("Verifying Extracted ID:", formattedId); 
-      setCode(formattedId); // Show the extracted ID in the UI
+      setCode(formattedId); 
 
       await new Promise(r => setTimeout(r, 800)); // UX delay
 
@@ -125,9 +123,30 @@ const Verify = () => {
     }
   };
 
-  // --- 3. Scanner Logic ---
+  // --- 3. File Upload Logic (New) ---
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+        const html5QrCode = new Html5Qrcode("reader-file");
+        const decodedText = await html5QrCode.scanFileV2(file, true);
+        verifyCode(decodedText);
+    } catch (err) {
+        console.error("File Scan Error:", err);
+        setErrorMsg("Could not find a valid QR code in this image. Please try a clearer photo.");
+        setLoading(false);
+    } finally {
+        // Reset input so the same file can be selected again if needed
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // --- 4. Scanner Logic ---
   useEffect(() => {
-    // Cleanup on unmount
     return () => {
         if (scannerRef.current) {
             try {
@@ -140,7 +159,6 @@ const Verify = () => {
     };
   }, []);
 
-  // Start scanner when isScanning becomes true
   useEffect(() => {
     if (!isScanning) return;
 
@@ -173,7 +191,6 @@ const Verify = () => {
                 { facingMode: "environment" }, 
                 config,
                 (decodedText) => {
-                    console.log("Raw Scan:", decodedText);
                     verifyCode(decodedText);
                 },
                 (errorMessage) => { /* ignore frame errors */ }
@@ -209,6 +226,9 @@ const Verify = () => {
   return (
     <div className="min-h-screen bg-slate-50 pt-24 pb-12 px-4 md:px-8 font-sans">
       
+      {/* Hidden div for file scanning */}
+      <div id="reader-file" className="hidden"></div>
+
       {/* Dynamic Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-400/20 rounded-full blur-[100px] animate-pulse"></div>
@@ -252,14 +272,31 @@ const Verify = () => {
                 {!isScanning && !loading && (
                   <motion.div 
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="space-y-6"
+                    className="space-y-4"
                   >
+                    {/* Camera Scan Button */}
                     <button 
                       onClick={() => setIsScanning(true)}
-                      className="group w-full py-8 bg-slate-900 hover:bg-slate-800 text-white rounded-3xl font-bold text-xl shadow-2xl shadow-slate-900/10 transition-all flex flex-col items-center justify-center gap-3 active:scale-[0.98] border-2 border-transparent hover:border-emerald-500/50"
+                      className="group w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-3xl font-bold text-xl shadow-2xl shadow-slate-900/10 transition-all flex flex-col items-center justify-center gap-2 active:scale-[0.98] border-2 border-transparent hover:border-emerald-500/50"
                     >
                       <Camera className="group-hover:scale-110 transition-transform text-emerald-400" size={32} />
                       <span>Tap to Scan QR</span>
+                    </button>
+
+                    {/* Upload from Device Button */}
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current.click()}
+                      className="w-full py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-bold text-lg border-2 border-slate-200 hover:border-emerald-400 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                    >
+                      <Upload size={24} className="text-emerald-600" />
+                      <span>Upload from Device</span>
                     </button>
 
                     <div className="relative flex items-center py-2">
@@ -268,6 +305,7 @@ const Verify = () => {
                       <div className="flex-grow border-t border-slate-200"></div>
                     </div>
 
+                    {/* Manual Input Form */}
                     <form onSubmit={handleManualSubmit} className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
                         <QrCode className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
@@ -338,7 +376,7 @@ const Verify = () => {
                  </div>
                  <h3 className="text-2xl font-bold text-slate-400">Ready to Analyze</h3>
                  <p className="text-slate-400 mt-2 max-w-sm">
-                   Scan a product code to view its verification status, scientific details, and expert usage advice.
+                   Scan a product code or upload a QR image to view verification status and expert usage advice.
                  </p>
                </motion.div>
             )}
@@ -448,16 +486,16 @@ const Verify = () => {
                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
                  className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-xl overflow-hidden h-full flex flex-col items-center justify-center text-center p-8 md:p-16"
                >
-                  <div className="w-32 h-32 bg-red-50 rounded-full flex items-center justify-center mb-6">
+                 <div className="w-32 h-32 bg-red-50 rounded-full flex items-center justify-center mb-6">
                      <XCircle className="text-red-500" size={64} />
-                  </div>
-                  
-                  <h2 className="text-4xl font-black text-slate-900 uppercase mb-2">Verification Failed</h2>
-                  <p className="text-lg text-slate-500 max-w-md mx-auto mb-8">
-                    The batch code <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 rounded">{code}</span> was not found in our database.
-                  </p>
+                 </div>
+                 
+                 <h2 className="text-4xl font-black text-slate-900 uppercase mb-2">Verification Failed</h2>
+                 <p className="text-lg text-slate-500 max-w-md mx-auto mb-8">
+                   The batch code <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 rounded">{code}</span> was not found in our database.
+                 </p>
 
-                  <div className="w-full max-w-lg bg-red-50 border border-red-100 p-6 rounded-2xl text-left flex gap-4 mb-8">
+                 <div className="w-full max-w-lg bg-red-50 border border-red-100 p-6 rounded-2xl text-left flex gap-4 mb-8">
                      <ShieldAlert className="text-red-600 shrink-0 mt-1" size={24} />
                      <div>
                         <h4 className="font-bold text-red-900 text-lg">Potential Counterfeit Warning</h4>
@@ -465,14 +503,14 @@ const Verify = () => {
                            This product is likely counterfeit or expired. Using it may harm your crops. Please report this to your local dealer immediately.
                         </p>
                      </div>
-                  </div>
+                 </div>
 
-                  <button 
-                    onClick={() => { setResult(null); setCode(""); }}
-                    className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2"
-                  >
-                    <ScanLine size={18} /> Try Again
-                  </button>
+                 <button 
+                   onClick={() => { setResult(null); setCode(""); }}
+                   className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2"
+                 >
+                   <ScanLine size={18} /> Try Again
+                 </button>
                </motion.div>
             )}
 
