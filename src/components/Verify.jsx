@@ -1,3 +1,4 @@
+
 // src/components/Verify.jsx
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
@@ -6,7 +7,7 @@ import {
   ShieldCheck, XCircle, ScanLine, Camera, X, 
   CheckCircle2, QrCode, ArrowRight, Loader2, Package, AlertTriangle 
 } from "lucide-react";
-import { Html5Qrcode } from "html5-qrcode"; // ✅ Using Html5Qrcode for better control
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 
 const Verify = () => {
   const [code, setCode] = useState("");
@@ -16,20 +17,24 @@ const Verify = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   
-  // Ref to hold the scanner instance
+  // Ref to hold the scanner instance to prevent re-initialization
   const scannerRef = useRef(null);
 
-  // Verification Logic
+  // --- 1. Verification Logic ---
   const verifyCode = async (batchId) => {
     if (!batchId) return;
-    stopScanner(); // Stop camera immediately upon detection
+    
+    // Ensure scanner is off before processing
+    setIsScanning(false);
+    
     setLoading(true);
     setResult(null);
     setProductData(null);
+    setErrorMsg(null);
     
     try {
       const formattedId = batchId.trim().toUpperCase(); 
-      // Simulate a small delay for UX smoothness
+      // Simulate UX delay
       await new Promise(r => setTimeout(r, 800));
 
       const docRef = doc(db, "products", formattedId);
@@ -49,79 +54,76 @@ const Verify = () => {
     }
   };
 
-  // Start Camera Logic
-  const startScanner = async () => {
-    setIsScanning(true);
-    setErrorMsg(null);
-    setResult(null);
+  // --- 2. Scanner Logic (Refactored to useEffect) ---
+  useEffect(() => {
+    // Only run this effect if isScanning is true
+    if (!isScanning) return;
 
-    // Give the DOM a moment to render the 'reader' div
-    setTimeout(async () => {
+    const scannerId = "reader";
+    let html5QrCode;
+
+    // Small timeout to ensure the DOM element <div id="reader"> is rendered
+    const timeoutId = setTimeout(() => {
         try {
-            if (scannerRef.current) {
-                // If scanner already running, clear it first
-                await scannerRef.current.stop().catch(() => {});
+            // Check if element exists to prevent crash
+            if (!document.getElementById(scannerId)) {
+                console.error("Scanner element not found");
+                return;
             }
 
-            const html5QrCode = new Html5Qrcode("reader");
+            html5QrCode = new Html5Qrcode(scannerId);
             scannerRef.current = html5QrCode;
 
-            // Preferred config for mobile
             const config = { 
                 fps: 10, 
                 qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0 
+                aspectRatio: 1.0,
+                formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
             };
-            
-            // Prefer back camera environment
-            await html5QrCode.start(
+
+            html5QrCode.start(
                 { facingMode: "environment" }, 
                 config,
                 (decodedText) => {
-                    // Success callback
-                    setCode(decodedText);
+                    // Success: Stop scanning and verify
                     verifyCode(decodedText);
                 },
                 (errorMessage) => {
                     // Ignore frame read errors (scanning in progress)
                 }
-            );
+            ).catch(err => {
+                console.error("Failed to start scanner", err);
+                setErrorMsg("Camera access failed. Please check permissions.");
+                setIsScanning(false);
+            });
+
         } catch (err) {
-            console.error("Camera start error:", err);
+            console.error("Scanner init error:", err);
             setIsScanning(false);
-            setErrorMsg("Camera permission denied or not available.");
         }
     }, 100);
-  };
 
-  // Stop Camera Logic
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-        try {
-            await scannerRef.current.stop();
-            scannerRef.current.clear();
-        } catch (err) {
-            console.error("Failed to stop scanner", err);
-        }
-        scannerRef.current = null;
-    }
-    setIsScanning(false);
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
+    // Cleanup function: runs when isScanning becomes false or component unmounts
     return () => {
+        clearTimeout(timeoutId);
         if (scannerRef.current) {
-            scannerRef.current.stop().catch(() => {}).finally(() => {
+            scannerRef.current.stop().then(() => {
                 scannerRef.current.clear();
+            }).catch(err => {
+                console.warn("Scanner stop error (usually harmless):", err);
             });
+            scannerRef.current = null;
         }
     };
-  }, []);
+  }, [isScanning]); // Dependency on isScanning
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
     verifyCode(code);
+  };
+
+  const handleCloseScanner = () => {
+    setIsScanning(false);
   };
 
   return (
@@ -160,10 +162,10 @@ const Verify = () => {
                 </div>
             )}
 
-            {/* Toggle Scanner Button */}
+            {/* Toggle Scanner Button (Only show if NOT scanning and NO result) */}
             {!isScanning && !result && !loading && (
               <button 
-                onClick={startScanner}
+                onClick={() => setIsScanning(true)}
                 className="group w-full py-4 sm:py-5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl hover:shadow-slate-900/20 transition-all duration-300 flex items-center justify-center gap-3 transform hover:-translate-y-1 active:scale-[0.98]"
               >
                 <Camera className="group-hover:rotate-12 transition-transform duration-300" size={24} />
@@ -171,32 +173,35 @@ const Verify = () => {
               </button>
             )}
 
-            {/* Live Scanner Interface */}
-            <div className={`${isScanning ? 'block' : 'hidden'} relative overflow-hidden rounded-3xl border-2 border-slate-200 bg-black shadow-inner animate-in fade-in zoom-in duration-300 aspect-square sm:aspect-auto sm:h-80`}>
-                {/* The div where Html5Qrcode renders */}
-                <div id="reader" className="w-full h-full object-cover"></div>
-                
-                {/* Custom Overlay UI for Scanner */}
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
-                  <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-emerald-500/60 rounded-3xl relative">
-                    <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-emerald-400 rounded-tl-xl -mt-1 -ml-1"></div>
-                    <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-emerald-400 rounded-tr-xl -mt-1 -mr-1"></div>
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-emerald-400 rounded-bl-xl -mb-1 -ml-1"></div>
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-emerald-400 rounded-br-xl -mb-1 -mr-1"></div>
-                    <div className="absolute inset-0 bg-emerald-500/10 animate-pulse rounded-2xl"></div>
-                  </div>
-                  <p className="mt-4 text-white font-medium bg-black/60 px-4 py-2 rounded-full backdrop-blur-md text-xs sm:text-sm">
-                    Align code within frame
-                  </p>
-                </div>
+            {/* Live Scanner Interface - Conditioned on isScanning */}
+            {isScanning && (
+                <div className="relative overflow-hidden rounded-3xl border-2 border-slate-200 bg-black shadow-inner animate-in fade-in zoom-in duration-300 aspect-square sm:aspect-auto sm:h-80">
+                    
+                    {/* The div where Html5Qrcode renders */}
+                    <div id="reader" className="w-full h-full"></div>
+                    
+                    {/* Custom Overlay UI for Scanner */}
+                    <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
+                      <div className="w-56 h-56 sm:w-64 sm:h-64 border-2 border-emerald-500/60 rounded-3xl relative">
+                        <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-emerald-400 rounded-tl-xl -mt-1 -ml-1"></div>
+                        <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-emerald-400 rounded-tr-xl -mt-1 -mr-1"></div>
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-emerald-400 rounded-bl-xl -mb-1 -ml-1"></div>
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-emerald-400 rounded-br-xl -mb-1 -mr-1"></div>
+                        <div className="absolute inset-0 bg-emerald-500/10 animate-pulse rounded-2xl"></div>
+                      </div>
+                      <p className="mt-4 text-white font-medium bg-black/60 px-4 py-2 rounded-full backdrop-blur-md text-xs sm:text-sm">
+                        Align code within frame
+                      </p>
+                    </div>
 
-                <button 
-                  onClick={stopScanner} 
-                  className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500/80 transition-colors z-50 pointer-events-auto"
-                >
-                  <X size={20} />
-                </button>
-            </div>
+                    <button 
+                      onClick={handleCloseScanner} 
+                      className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500/80 transition-colors z-50 pointer-events-auto"
+                    >
+                      <X size={20} />
+                    </button>
+                </div>
+            )}
 
             {/* Divider */}
             {!isScanning && !result && !loading && (
@@ -333,4 +338,3 @@ const Verify = () => {
 };
 
 export default Verify;
-
