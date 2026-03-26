@@ -114,7 +114,7 @@ const FloatingChatbot = () => {
     try {
       // ✅ STRICTLY USING GEMINI 3.1 AS REQUESTED
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         systemInstruction: "You are Kisan Sahayak, an expert agricultural AI assistant for Indian farmers. Keep answers concise, practical, and easy to understand."
       });
       
