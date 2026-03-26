@@ -538,6 +538,11 @@ const AdminDashboard = () => {
       const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(searchQuery)}`;
       const res = await fetch(url);
       const data = await res.json();
+      if (!res.ok) {
+        showToast(`Google API Error: ${data.error?.message || "Search Engine Misconfigured"}`, "error");
+        setSearching(false);
+        return;
+      }
       if (data.items) { setWebResults(data.items); } else { showToast("No results found.", "error"); }
     } catch (error) { showToast("Error searching web.", "error"); }
     setSearching(false);
@@ -558,12 +563,18 @@ const AdminDashboard = () => {
       const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&searchType=image&num=1`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.items && data.items.length > 0) return data.items[0].link; 
+      // Graceful fallback if image search fails due to 400 error
+      if (!res.ok) {
+        console.error("Google Image Fetch API Error:", data.error?.message);
+        return null; 
+      }
+      if (data.items && data.items.length > 0) return data.items[0].link || null; 
     } catch (error) { console.error("Google Image Fetch Error:", error); }
     return null;
   };
 
   const handleAddScheme = async () => {
+    if (!schemeTitle) return showToast("Scheme Title is required", "error");
     setUploading(true);
     try {
       let imageUrl = null;
@@ -574,12 +585,18 @@ const AdminDashboard = () => {
       }
 
       await addDoc(collection(db, "schemes"), { 
-        title: schemeTitle, description: schemeDesc, category: schemeCategory, imageUrl
+        title: schemeTitle, 
+        description: schemeDesc || "No description provided", 
+        category: schemeCategory, 
+        imageUrl: imageUrl || null
       });
-      showToast("Scheme Posted!"); 
+      showToast("Scheme Posted Successfully!"); 
       setSchemeTitle(""); setSchemeDesc(""); setSchemeImage(null); setSchemeImagePreview(null);
       setSchemes([]); fetchSchemes();
-    } catch (e) { showToast(e.message, "error"); }
+    } catch (e) { 
+      console.error("Scheme Post Error:", e);
+      showToast(e.message, "error"); 
+    }
     finally { setUploading(false); }
   };
 
