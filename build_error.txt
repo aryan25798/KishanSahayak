@@ -1,0 +1,81 @@
+
+> kisan-sahayak@0.0.0 build
+> vite build
+
+[36mrolldown-vite v7.2.5 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 2749 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/registerSW.js                              0.13 kB
+dist/manifest.webmanifest                       0.46 kB
+dist/index.html                                 2.81 kB │ gzip:   1.09 kB
+dist/assets/index-BEbF5HGV.css                 95.61 kB │ gzip:  14.73 kB
+dist/assets/imageUtils-Pb79_-Ea.js              0.58 kB │ gzip:   0.40 kB
+dist/assets/rolldown-runtime-Cn8xt2Gj.js        0.72 kB │ gzip:   0.42 kB
+dist/assets/SkeletonLoader-D4wZ0KD_.js          1.31 kB │ gzip:   0.54 kB
+dist/assets/TTSButton-CZh-P1yW.js               1.54 kB │ gzip:   0.75 kB
+dist/assets/ShareButton-CvTvPfHj.js             1.90 kB │ gzip:   1.15 kB
+dist/assets/formatTime-D_fug5cz.js              4.06 kB │ gzip:   1.70 kB
+dist/assets/FarmerMap-B5epRo4q.js               4.18 kB │ gzip:   1.74 kB
+dist/assets/ResetPassword-CFxAsmg9.js           4.24 kB │ gzip:   1.50 kB
+dist/assets/ContactSupport-UMKiBOZ2.js          6.73 kB │ gzip:   2.58 kB
+dist/assets/CommunityForum-D7SWgzhX.js          7.47 kB │ gzip:   2.62 kB
+dist/assets/ChatInterface-DWtH-9tB.js           7.74 kB │ gzip:   3.11 kB
+dist/assets/Schemes-GM5czWE6.js                10.45 kB │ gzip:   3.03 kB
+dist/assets/MyFarm-Wt0BePsN.js                 13.42 kB │ gzip:   3.95 kB
+dist/assets/CropDoctor-CQXaaTjc.js             14.45 kB │ gzip:   4.46 kB
+dist/assets/MarketPrices-BlUv2B7P.js           15.50 kB │ gzip:   5.15 kB
+dist/assets/Weather-CsoCGETc.js                17.02 kB │ gzip:   5.49 kB
+dist/assets/EquipmentMarketplace-DfXVevWn.js   36.59 kB │ gzip:   8.17 kB
+dist/assets/index-CWSkfEvU.js                 118.21 kB │ gzip:  35.75 kB
+dist/assets/maps-vendor-epLWFgL2.js           162.63 kB │ gzip:  36.18 kB
+dist/assets/react-vendor-DU1gS53-.js          222.52 kB │ gzip:  71.72 kB
+dist/assets/Verify-Bkruiswm.js                385.94 kB │ gzip: 113.00 kB
+dist/assets/firebase-vendor-D1mICGXF.js       474.11 kB │ gzip: 143.74 kB
+dist/assets/AdminDashboard-Mb-QX6Gp.js        491.99 kB │ gzip: 153.52 kB
+dist/assets/ui-libs-Di6hHMfm.js               494.74 kB │ gzip: 151.73 kB
+[32m✓ built in 1.01s[39m
+
+✨ [vite-plugin-compression]:algorithm=gzip - compressed file successfully: 
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/CommunityForum-D7SWgzhX.js.gz         7.30kb / gzip: 2.55kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/formatTime-D_fug5cz.js.gz             3.96kb / gzip: 1.66kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/ChatInterface-DWtH-9tB.js.gz          7.56kb / gzip: 3.03kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/ContactSupport-UMKiBOZ2.js.gz         6.57kb / gzip: 2.51kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/CropDoctor-CQXaaTjc.js.gz             14.11kb / gzip: 4.35kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/FarmerMap-B5epRo4q.js.gz              4.09kb / gzip: 1.70kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/MarketPrices-BlUv2B7P.js.gz           15.14kb / gzip: 5.02kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/MyFarm-Wt0BePsN.js.gz                 13.11kb / gzip: 3.85kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/EquipmentMarketplace-DfXVevWn.js.gz   35.74kb / gzip: 7.93kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/ResetPassword-CFxAsmg9.js.gz          4.15kb / gzip: 1.47kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/Schemes-GM5czWE6.js.gz                10.21kb / gzip: 2.96kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/ShareButton-CvTvPfHj.js.gz            1.86kb / gzip: 1.12kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/TTSButton-CZh-P1yW.js.gz              1.51kb / gzip: 0.74kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/SkeletonLoader-D4wZ0KD_.js.gz         1.29kb / gzip: 0.53kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/index-BEbF5HGV.css.gz                 93.38kb / gzip: 14.18kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/Weather-CsoCGETc.js.gz                16.62kb / gzip: 5.35kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/index.html.gz                                2.75kb / gzip: 1.06kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/maps-vendor-epLWFgL2.js.gz            158.82kb / gzip: 34.99kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/index-CWSkfEvU.js.gz                  115.45kb / gzip: 34.65kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/react-vendor-DU1gS53-.js.gz           217.31kb / gzip: 69.15kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/Verify-Bkruiswm.js.gz                 376.90kb / gzip: 109.16kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/AdminDashboard-Mb-QX6Gp.js.gz         480.47kb / gzip: 148.43kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/ui-libs-Di6hHMfm.js.gz                483.15kb / gzip: 146.61kb
+dist/D:/KishanSahayak-main/KishanSahayak-main/assets/firebase-vendor-D1mICGXF.js.gz        463.00kb / gzip: 138.73kb
+
+
+[31merror during build:
+Error: 
+  Configure "workbox.maximumFileSizeToCacheInBytes" to change the limit: the default value is 2 MiB.
+  Check https://vite-pwa-org.netlify.app/guide/faq.html#missing-assets-from-sw-precache-manifest for more information.
+  Assets exceeding the limit:
+  - pwa-512x512.png is 3.28 MB, and won't be precached.
+  - pwa-512x512 - Copy.png is 3.28 MB, and won't be precached.
+  - pwa-192x192.png is 3.28 MB, and won't be precached.
+  - logo.png is 3.28 MB, and won't be precached.
+
+    at logWorkboxResult (file:///D:/KishanSahayak-main/KishanSahayak-main/node_modules/vite-plugin-pwa/dist/chunk-G4TAN34B.js:44:13)
+    at generateServiceWorker (file:///D:/KishanSahayak-main/KishanSahayak-main/node_modules/vite-plugin-pwa/dist/index.js:209:3)
+    at async _generateSW (file:///D:/KishanSahayak-main/KishanSahayak-main/node_modules/vite-plugin-pwa/dist/index.js:234:5)
+    at async PluginContextImpl.handler (file:///D:/KishanSahayak-main/KishanSahayak-main/node_modules/vite-plugin-pwa/dist/index.js:427:13)
+    at async plugin (file:///D:/KishanSahayak-main/KishanSahayak-main/node_modules/rolldown/dist/shared/src-CYkh2Ybc.mjs:3362:4)
+    at async plugin.<computed> (file:///D:/KishanSahayak-main/KishanSahayak-main/node_modules/rolldown/dist/shared/src-CYkh2Ybc.mjs:3611:12)[39m

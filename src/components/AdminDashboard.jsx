@@ -1,0 +1,1944 @@
+// src/components/AdminDashboard.jsx
+import { useState, useEffect, useRef } from "react";
+import { db, auth, storage } from "../firebase";
+import { 
+  collection, addDoc, getDocs, deleteDoc, doc, setDoc, 
+  query, where, updateDoc, orderBy, limit, startAfter, writeBatch,
+  serverTimestamp, arrayUnion, arrayRemove 
+} from "firebase/firestore"; 
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate, useSearchParams } from "react-router-dom"; 
+import { 
+  Plus, Trash2, Package, ScrollText, Users, LogOut, Loader, Search, Globe, 
+  Image as ImageIcon, X, Mail, MessageSquare, CheckCircle, Menu, TrendingUp, 
+  MessageCircle, Edit2, MapPin, FileText, XCircle, Send, AlertCircle, Tractor,
+  History, Clock, Upload, Download, FileSpreadsheet, CheckSquare, Square, AlertTriangle, 
+  Calendar, Star, Filter, Sprout, Bell, ChevronDown 
+} from "lucide-react"; 
+import emailjs from "@emailjs/browser"; 
+import * as XLSX from 'xlsx'; 
+import ChatInterface from "./ChatInterface";
+import EquipmentChat from "./EquipmentChat"; 
+import { formatTime } from "../utils/formatTime"; 
+import { compressImage } from "../utils/imageUtils";
+
+const AdminDashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams(); 
+
+  const activeTab = searchParams.get("tab") || "products";
+
+  const setActiveTab = (tab) => {
+    setSearchParams({ tab });
+    setIsSidebarOpen(false); // Auto-close sidebar on mobile selection
+  };
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [notification, setNotification] = useState(null); 
+
+  // Data States
+  const [products, setProducts] = useState([]);
+  const [schemes, setSchemes] = useState([]);
+  const [farmers, setFarmers] = useState([]);
+  const [complaints, setComplaints] = useState([]); 
+  const [forumPosts, setForumPosts] = useState([]);
+  const [marketPrices, setMarketPrices] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [equipmentList, setEquipmentList] = useState([]); 
+  const [equipmentRequests, setEquipmentRequests] = useState([]); 
+  const [reviews, setReviews] = useState([]); 
+  const [loading, setLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false); 
+
+  // Pagination States
+  const [lastProductDoc, setLastProductDoc] = useState(null);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const PRODUCTS_PER_PAGE = 10;
+
+  // Chat State
+  const [activeChat, setActiveChat] = useState(null);
+  const [chatType, setChatType] = useState(null); 
+
+  // Review State 
+  const [reviewRequest, setReviewRequest] = useState(null); 
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: "" });
+
+  // Bulk Selection State
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Refs for Bulk File Inputs
+  const productFileRef = useRef(null);
+  const schemeFileRef = useRef(null);
+  const marketFileRef = useRef(null);
+  const equipmentFileRef = useRef(null); 
+
+  // --- FORM STATES ---
+  const [productName, setProductName] = useState("");
+  const [batchCode, setBatchCode] = useState("");
+  const [productImage, setProductImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+    
+  const [schemeTitle, setSchemeTitle] = useState("");
+  const [schemeDesc, setSchemeDesc] = useState("");
+  const [schemeCategory, setSchemeCategory] = useState("Scheme");
+  const [schemeImage, setSchemeImage] = useState(null); 
+  const [schemeImagePreview, setSchemeImagePreview] = useState(null); 
+
+  const [marketCrop, setMarketCrop] = useState("");
+  const [marketMandi, setMarketMandi] = useState("");
+  const [marketPrice, setMarketPrice] = useState("");
+  const [marketChange, setMarketChange] = useState("up");
+  const [marketImage, setMarketImage] = useState(null); 
+  const [marketImagePreview, setMarketImagePreview] = useState(null); 
+  const [editMarketId, setEditMarketId] = useState(null);
+
+  const [eqName, setEqName] = useState("");
+  const [eqType, setEqType] = useState("Rent");
+  const [eqPrice, setEqPrice] = useState("");
+  const [eqLocation, setEqLocation] = useState("");
+  const [eqImage, setEqImage] = useState(null);
+  const [eqImagePreview, setEqImagePreview] = useState(null);
+
+  const [resolvingId, setResolvingId] = useState(null);
+  const [replyText, setReplyText] = useState("");
+
+  const [searchQuery, setSearchQuery] = useState("latest agriculture subsidy india 2026");
+  const [webResults, setWebResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const [moduleSearch, setModuleSearch] = useState("");
+
+  const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_SEARCH_KEY; 
+  const SEARCH_ENGINE_ID = import.meta.env.VITE_SEARCH_ENGINE_ID; 
+  const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+  const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+  const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+  const showToast = (message, type = "success") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const getDatesInRange = (start, end) => {
+    const dates = [];
+    let curr = new Date(start);
+    const last = new Date(end);
+    while (curr <= last) {
+      dates.push(curr.toISOString().split('T')[0]);
+      curr.setDate(curr.getDate() + 1);
+    }
+    return dates;
+  };
+
+  // ✅ IMPROVED LOGOUT FUNCTION
+  const handleLogout = async () => {
+    try {
+        await auth.signOut();
+        navigate("/login", { replace: true });
+    } catch (error) {
+        console.error("Logout Error:", error);
+        showToast("Logout failed", "error");
+    }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    if (user.email !== "admin@system.com") {
+      alert("Access Denied. Admins only.");
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    setSelectedItems(new Set());
+    setModuleSearch(""); 
+  }, [activeTab]);
+
+  // --- Fetching Functions ---
+  const fetchProducts = async (isNextPage = false) => {
+    setLoading(true);
+    try {
+      const productsRef = collection(db, "products");
+      let q;
+      if (isNextPage && lastProductDoc) {
+        q = query(productsRef, orderBy("verificationDate", "desc"), limit(PRODUCTS_PER_PAGE), startAfter(lastProductDoc));
+      } else {
+        q = query(productsRef, orderBy("verificationDate", "desc"), limit(PRODUCTS_PER_PAGE));
+      }
+      const snapshot = await getDocs(q);
+      const newProducts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setLastProductDoc(snapshot.docs[snapshot.docs.length - 1]);
+      if (snapshot.docs.length < PRODUCTS_PER_PAGE) setHasMoreProducts(false);
+      if (isNextPage) setProducts(prev => [...prev, ...newProducts]);
+      else setProducts(newProducts);
+    } catch (err) { console.error(err); showToast("Failed to fetch products", "error"); }
+    setLoading(false);
+  };
+
+  const fetchSchemes = async () => {
+    setLoading(true);
+    try {
+      const sSnap = await getDocs(query(collection(db, "schemes"), limit(100)));
+      setSchemes(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchFarmers = async () => {
+    setLoading(true);
+    try {
+      const fSnap = await getDocs(query(collection(db, "users"), where("role", "==", "farmer"), limit(200)));
+      setFarmers(fSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchComplaints = async () => {
+    setLoading(true);
+    try {
+      const cSnap = await getDocs(query(collection(db, "complaints"), limit(200)));
+      setComplaints(cSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchForum = async () => {
+    setLoading(true);
+    try {
+      const forumSnap = await getDocs(query(collection(db, "forum_posts"), limit(200)));
+      setForumPosts(forumSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchMarket = async () => {
+    setLoading(true);
+    try {
+      const marketSnap = await getDocs(query(collection(db, "market_prices"), limit(200)));
+      setMarketPrices(marketSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchApplications = async () => {
+    setLoading(true);
+    try {
+      const appSnap = await getDocs(query(collection(db, "applications"), orderBy("appliedAt", "desc"), limit(200)));
+      setApplications(appSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchEquipment = async () => {
+    setLoading(true);
+    try {
+      const eqSnap = await getDocs(query(collection(db, "equipment"), limit(200)));
+      setEquipmentList(eqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        
+      const reqSnap = await getDocs(query(collection(db, "equipment_requests"), orderBy("timestamp", "desc"), limit(200)));
+      setEquipmentRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      const rSnap = await getDocs(query(collection(db, "reviews"), limit(200)));
+      setReviews(rSnap.docs.map(d => d.data()));
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  useEffect(() => { 
+    if (user?.email === "admin@system.com") {
+        if (activeTab === "products" && products.length === 0) fetchProducts();
+        if (activeTab === "schemes") fetchSchemes();
+        if (activeTab === "farmers") fetchFarmers();
+        if (activeTab === "complaints") fetchComplaints();
+        if (activeTab === "forum") fetchForum();
+        if (activeTab === "market") fetchMarket();
+        if (activeTab === "applications") fetchApplications();
+        if (activeTab === "equipment") fetchEquipment(); 
+    }
+  }, [user, activeTab]);
+
+  // --- EXCEL / BULK OPERATIONS ---
+  const handleBulkUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setBulkLoading(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+        try {
+            const data = event.target.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+            if (jsonData.length === 0) {
+                showToast("File is empty", "error");
+                setBulkLoading(false);
+                return;
+            }
+
+            let successCount = 0;
+
+            for (const row of jsonData) {
+                if (type === "products") {
+                    const code = row.code || row.batchCode || `BTC-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                    const safeCode = code.toString().replace(/\//g, "-").toUpperCase();
+                    await setDoc(doc(db, "products", safeCode), {
+                        name: row.name || "Unnamed Product",
+                        status: "Genuine",
+                        addedBy: "Bulk Upload",
+                        verificationDate: new Date().toISOString(),
+                        imageUrl: row.imageUrl || null 
+                    });
+                } else if (type === "schemes") {
+                    await addDoc(collection(db, "schemes"), {
+                        title: row.title || "New Scheme",
+                        description: row.description || "",
+                        category: row.category || "Scheme",
+                        imageUrl: row.imageUrl || null,
+                        timestamp: new Date()
+                    });
+                } else if (type === "market") {
+                    await addDoc(collection(db, "market_prices"), {
+                        crop: row.crop || "Crop",
+                        variety: row.variety || "Standard",        
+                        market: row.market || "Mandi",
+                        district: row.district || "",               
+                        state: row.state || "",                     
+                        price: row.price ? `₹${row.price}/qt` : "₹0/qt",
+                        min_price: row.min_price ? `₹${row.min_price}/qt` : "", 
+                        max_price: row.max_price ? `₹${row.max_price}/qt` : "", 
+                        date: row.date || new Date().toLocaleDateString(),        
+                        change: row.change || "stable",
+                        imageUrl: row.imageUrl || null, 
+                        timestamp: new Date()
+                    });
+                } else if (type === "equipment") {
+                    await addDoc(collection(db, "equipment"), {
+                        name: row.name || "Unnamed Equipment",
+                        type: row.type || "Rent", 
+                        price: row.price || "0",
+                        location: row.location || "Unknown",
+                        description: row.description || "",
+                        imageUrl: row.imageUrl || null,
+                        ownerEmail: "admin@system.com",
+                        ownerName: "Kishan Sahayak Admin",
+                        status: "Available",
+                        unavailableDates: [],
+                        createdAt: new Date()
+                    });
+                }
+                successCount++;
+            }
+
+            showToast(`Successfully uploaded ${successCount} items!`);
+            
+            if (type === "products") { setProducts([]); fetchProducts(); }
+            if (type === "schemes") { setSchemes([]); fetchSchemes(); }
+            if (type === "market") { setMarketPrices([]); fetchMarket(); }
+            if (type === "equipment") { setEquipmentList([]); fetchEquipment(); } 
+
+        } catch (error) {
+            console.error("Bulk Upload Error:", error);
+            showToast("Failed to parse file. Check format.", "error");
+        } finally {
+            setBulkLoading(false);
+            if(productFileRef.current) productFileRef.current.value = "";
+            if(schemeFileRef.current) schemeFileRef.current.value = "";
+            if(marketFileRef.current) marketFileRef.current.value = "";
+            if(equipmentFileRef.current) equipmentFileRef.current.value = ""; 
+        }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const downloadApplicationsExcel = () => {
+    if (applications.length === 0) return showToast("No data to export", "error");
+
+    const worksheet = XLSX.utils.json_to_sheet(applications.map(app => ({
+        "Applicant Name": app.applicantName,
+        "Email": app.applicantEmail,
+        "Scheme Applied": app.schemeTitle,
+        "Status": app.status,
+        "Applied Date": app.appliedAt?.toDate ? app.appliedAt.toDate().toLocaleDateString() : "N/A",
+        "Exact Location": app.location?.lat && app.location?.lng 
+            ? `http://googleusercontent.com/maps.google.com/?q=${app.location.lat},${app.location.lng}` 
+            : "Location not available"
+    })));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Applications");
+      
+    XLSX.writeFile(workbook, "Scheme_Applications_Report.xlsx");
+    showToast("Report Downloaded!");
+  };
+
+  // --- BULK DELETE & WIPE LOGIC ---
+  const toggleSelection = (id) => {
+    const newSelection = new Set(selectedItems);
+    if (newSelection.has(id)) {
+        newSelection.delete(id);
+    } else {
+        newSelection.add(id);
+    }
+    setSelectedItems(newSelection);
+  };
+
+  const toggleSelectAll = (items) => {
+    if (items.every(item => selectedItems.has(item.id))) {
+        setSelectedItems(new Set()); 
+    } else {
+        const newSelection = new Set(selectedItems);
+        items.forEach(item => newSelection.add(item.id));
+        setSelectedItems(newSelection);
+    }
+  };
+
+  const handleBulkDelete = async (collectionName) => {
+    if (selectedItems.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.size} items? This cannot be undone.`)) return;
+
+    setIsDeleting(true);
+    try {
+        const batch = writeBatch(db); 
+        selectedItems.forEach(id => {
+            const docRef = doc(db, collectionName, id);
+            batch.delete(docRef);
+        });
+        await batch.commit();
+        
+        showToast(`Successfully deleted ${selectedItems.size} items.`);
+        
+        if (collectionName === "products") setProducts(prev => prev.filter(p => !selectedItems.has(p.id)));
+        if (collectionName === "schemes") setSchemes(prev => prev.filter(s => !selectedItems.has(s.id)));
+        if (collectionName === "users") setFarmers(prev => prev.filter(f => !selectedItems.has(f.id)));
+        if (collectionName === "complaints") setComplaints(prev => prev.filter(c => !selectedItems.has(c.id)));
+        if (collectionName === "market_prices") setMarketPrices(prev => prev.filter(m => !selectedItems.has(m.id)));
+        if (collectionName === "forum_posts") setForumPosts(prev => prev.filter(p => !selectedItems.has(p.id)));
+        if (collectionName === "equipment") setEquipmentList(prev => prev.filter(e => !selectedItems.has(e.id))); 
+
+        setSelectedItems(new Set()); 
+
+    } catch (error) {
+        console.error("Bulk Delete Error:", error);
+        showToast("Failed to delete selected items.", "error");
+    } finally {
+        setIsDeleting(false);
+    }
+  };
+
+  const handleWipeCollection = async (collectionName) => {
+    if(!window.confirm(`⚠️ EXTREME DANGER: This will delete ALL data in "${collectionName}".\n\nThis includes items NOT visible on the current page.\nAre you absolutely sure?`)) return;
+    
+    const prompt = window.prompt(`Type "DELETE" to confirm wiping all ${collectionName}:`);
+    if (prompt !== "DELETE") return showToast("Deletion cancelled. Data is safe.", "error");
+
+    setBulkLoading(true);
+    try {
+        let deletedCount = 0;
+        
+        while (true) {
+            const q = query(collection(db, collectionName), limit(500)); 
+            const snapshot = await getDocs(q);
+            
+            if (snapshot.empty) break;
+
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit(); 
+            
+            deletedCount += snapshot.size;
+        }
+
+        showToast(`Successfully deleted ALL ${deletedCount} items from DB.`);
+        
+        if (collectionName === "products") setProducts([]);
+        if (collectionName === "schemes") setSchemes([]);
+        if (collectionName === "users") setFarmers([]);
+        if (collectionName === "complaints") setComplaints([]);
+        if (collectionName === "market_prices") setMarketPrices([]);
+        if (collectionName === "forum_posts") setForumPosts([]);
+        if (collectionName === "applications") setApplications([]);
+        if (collectionName === "equipment") setEquipmentList([]); 
+
+    } catch (e) {
+        console.error(e);
+        showToast("Error wiping data: " + e.message, "error");
+    } finally {
+        setBulkLoading(false);
+    }
+  };
+
+  // --- Handlers & Upload Logic ---
+
+  const handleProductImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) { setProductImage(file); setImagePreview(URL.createObjectURL(file)); }
+  };
+
+  const handleSchemeImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) { setSchemeImage(file); setSchemeImagePreview(URL.createObjectURL(file)); }
+  };
+
+  const handleMarketImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) { setMarketImage(file); setMarketImagePreview(URL.createObjectURL(file)); }
+  };
+
+  const handleEqImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) { setEqImage(file); setEqImagePreview(URL.createObjectURL(file)); }
+  };
+
+  const uploadFile = async (file, path) => {
+    if (!file) return null;
+    const compressedImage = await compressImage(file);
+    const fileRef = ref(storage, `${path}/${Date.now()}-${compressedImage.name}`);
+    await uploadBytes(fileRef, compressedImage);
+    return await getDownloadURL(fileRef);
+  };
+
+  const handleAddProduct = async () => {
+    if (!batchCode || !productName) return showToast("Please fill all fields", "error");
+    setUploading(true);
+    const safeCode = batchCode.replace(/\//g, "-").toUpperCase(); 
+    
+    try {
+       let imageUrl = await uploadFile(productImage, "products");
+       await setDoc(doc(db, "products", safeCode), {
+         name: productName, status: "Genuine", addedBy: "Admin",
+         verificationDate: new Date().toISOString(), imageUrl 
+       });
+       showToast("Product Added Successfully!");
+       setBatchCode(""); setProductName(""); setProductImage(null); setImagePreview(null);
+       setProducts([]); setLastProductDoc(null); setHasMoreProducts(true); fetchProducts(); 
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setUploading(false); }
+  };
+
+  const searchWebSchemes = async () => {
+    setSearching(true);
+    try {
+      const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(searchQuery)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.items) { setWebResults(data.items); } else { showToast("No results found.", "error"); }
+    } catch (error) { showToast("Error searching web.", "error"); }
+    setSearching(false);
+  };
+
+  const importScheme = async (item) => {
+    try {
+      await addDoc(collection(db, "schemes"), {
+        title: item.title, description: item.snippet || "No description", category: "Imported Subsidy", link: item.link, timestamp: new Date()
+      });
+      showToast("Scheme Imported!"); 
+      setSchemes([]); fetchSchemes();
+    } catch (e) { showToast("Error importing: " + e.message, "error"); }
+  };
+
+  const fetchGoogleImage = async (query) => {
+    try {
+      const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&searchType=image&num=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.items && data.items.length > 0) return data.items[0].link; 
+    } catch (error) { console.error("Google Image Fetch Error:", error); }
+    return null;
+  };
+
+  const handleAddScheme = async () => {
+    setUploading(true);
+    try {
+      let imageUrl = null;
+      if (schemeImage) {
+          imageUrl = await uploadFile(schemeImage, "schemes");
+      } else {
+          imageUrl = await fetchGoogleImage(schemeTitle);
+      }
+
+      await addDoc(collection(db, "schemes"), { 
+        title: schemeTitle, description: schemeDesc, category: schemeCategory, imageUrl
+      });
+      showToast("Scheme Posted!"); 
+      setSchemeTitle(""); setSchemeDesc(""); setSchemeImage(null); setSchemeImagePreview(null);
+      setSchemes([]); fetchSchemes();
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setUploading(false); }
+  };
+
+  const handleUpdateApplicationStatus = async (appId, newStatus) => {
+    try {
+      await updateDoc(doc(db, "applications", appId), { status: newStatus });
+      setApplications(prev => prev.map(app => app.id === appId ? { ...app, status: newStatus } : app));
+      showToast(`Application ${newStatus}!`);
+    } catch (error) { showToast("Failed to update status", "error"); }
+  };
+
+  const handleAddOrUpdateMarketPrice = async () => {
+    if (!marketCrop || !marketMandi || !marketPrice) return showToast("Fill all fields", "error");
+    setUploading(true);
+    try {
+      let imageUrl = null;
+      if (marketImage) {
+          imageUrl = await uploadFile(marketImage, "market");
+      }
+
+      const payload = { crop: marketCrop, market: marketMandi, price: marketPrice, change: marketChange, timestamp: new Date() };
+      if (imageUrl) payload.imageUrl = imageUrl; 
+
+      if (editMarketId) {
+        await updateDoc(doc(db, "market_prices", editMarketId), payload);
+        showToast("Market Price Updated!");
+        setEditMarketId(null);
+      } else {
+        await addDoc(collection(db, "market_prices"), { ...payload, imageUrl });
+        showToast("Market Price Added!");
+      }
+      setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); setMarketImage(null); setMarketImagePreview(null);
+      setMarketPrices([]); fetchMarket();
+    } catch (e) { showToast(e.message, "error"); }
+    finally { setUploading(false); }
+  };
+
+  const startEditPrice = (item) => {
+    setEditMarketId(item.id);
+    setMarketCrop(item.crop);
+    setMarketMandi(item.market);
+    setMarketPrice(item.price);
+    setMarketChange(item.change);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (col, id) => {
+    if(window.confirm("Delete this item? This cannot be undone.")) { 
+      try {
+        await deleteDoc(doc(db, col, id)); 
+        showToast("Deleted successfully.");
+        if (col === "products") setProducts(prev => prev.filter(p => p.id !== id)); 
+        if (col === "schemes") setSchemes(prev => prev.filter(s => s.id !== id)); 
+        if (col === "users") setFarmers(prev => prev.filter(f => f.id !== id)); 
+        if (col === "complaints") setComplaints(prev => prev.filter(c => c.id !== id)); 
+        if (col === "market_prices") setMarketPrices(prev => prev.filter(m => m.id !== id)); 
+        if (col === "forum_posts") setForumPosts(prev => prev.filter(p => p.id !== id)); 
+        if (col === "equipment") setEquipmentList(prev => prev.filter(e => e.id !== id)); 
+      } catch(e) { showToast("Error deleting: " + e.message, "error"); }
+    }
+  };
+
+  const handleResolveComplaint = async (id, farmerEmail, farmerName, originalMessage) => {
+    if (!replyText) return showToast("Please enter a reply", "error");
+    setUploading(true); 
+    try {
+      await updateDoc(doc(db, "complaints", id), { status: "Resolved", adminReply: replyText });
+      const templateParams = {
+        to_name: farmerName || "Farmer", to_email: farmerEmail, complaint_id: id.slice(0, 5),
+        user_message: originalMessage, status_message: "Your complaint has been RESOLVED.", admin_reply: replyText
+      };
+      await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+      showToast(`Complaint Resolved! Email sent to ${farmerEmail}`);
+      setResolvingId(null); setReplyText(""); fetchComplaints();
+    } catch (e) { showToast("Updated DB but failed to send Email", "error"); } 
+    finally { setUploading(false); }
+  };
+
+  // --- 🆕 EQUIPMENT LOGIC ---
+  const handleAddEquipment = async () => {
+    if (!eqName || !eqPrice) return showToast("Fill required fields", "error");
+    setUploading(true);
+    try {
+        let imageUrl = null;
+        if(eqImage) imageUrl = await uploadFile(eqImage, "equipment");
+        
+        await addDoc(collection(db, "equipment"), {
+            name: eqName, type: eqType, price: eqPrice, location: eqLocation, 
+            description: "Listed by Admin", imageUrl, 
+            ownerEmail: user.email, ownerName: "Admin", 
+            status: "Available", unavailableDates: [], createdAt: new Date()
+        });
+        showToast("Equipment Added!");
+        setEqName(""); setEqPrice(""); setEqLocation(""); setEqImage(null); setEqImagePreview(null);
+        fetchEquipment();
+    } catch(e) { showToast(e.message, "error"); }
+    finally { setUploading(false); }
+  };
+
+  // ✅ Updated Action Handler to Manage Calendar
+  const handleRequestAction = async (req, action) => {
+      try {
+          if (action === "Approved") {
+              const dates = getDatesInRange(req.startDate, req.endDate);
+              await updateDoc(doc(db, "equipment", req.equipmentId), { unavailableDates: arrayUnion(...dates) });
+          } else if (action === "Completed") {
+              const dates = getDatesInRange(req.startDate, req.endDate);
+              await updateDoc(doc(db, "equipment", req.equipmentId), { unavailableDates: arrayRemove(...dates) });
+          } else if (action === "Rejected" && req.status === "Approved") {
+              // Free dates if cancelling
+              const dates = getDatesInRange(req.startDate, req.endDate);
+              await updateDoc(doc(db, "equipment", req.equipmentId), { unavailableDates: arrayRemove(...dates) });
+          }
+
+          await updateDoc(doc(db, "equipment_requests", req.id), { status: action });
+          showToast(`Request ${action}`);
+          fetchEquipment();
+      } catch (e) { console.error(e); showToast("Action failed", "error"); }
+  };
+
+  // ✅ Submit Review Function
+  const submitReview = async (e) => {
+    e.preventDefault();
+    if (!reviewRequest) return;
+    try {
+        // Admin acts as owner usually, so target is requester
+        const isOwner = user.email === reviewRequest.ownerEmail;
+        const targetEmail = isOwner ? reviewRequest.requesterEmail : reviewRequest.ownerEmail;
+
+        await addDoc(collection(db, "reviews"), {
+            requestId: reviewRequest.id,
+            reviewerEmail: user.email,
+            targetEmail: targetEmail,
+            rating: reviewData.rating,
+            comment: reviewData.comment,
+            timestamp: serverTimestamp()
+        });
+        showToast("Review submitted!");
+        setReviewRequest(null);
+        setReviewData({ rating: 5, comment: "" });
+        fetchEquipment(); 
+    } catch (e) { showToast("Failed to submit review", "error"); }
+  };
+
+  // --- Render Sections ---
+
+  const renderProducts = () => {
+    // ✅ Filter Products Logic
+    const filteredProducts = products.filter(p => 
+        p.name.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        p.id.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    return (
+    <div className="animate-fade-up">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Verified Products</h2>
+         
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+           {/* ✅ Search Input for Products */}
+           <div className="relative flex-1 md:flex-none">
+              <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search products..." 
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+              />
+           </div>
+
+           {selectedItems.size > 0 && (
+              <button 
+                  onClick={() => handleBulkDelete("products")}
+                  disabled={isDeleting}
+                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+              >
+                  {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                  <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+              </button>
+           )}
+           
+           <button 
+              onClick={() => handleWipeCollection("products")}
+              className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+              title="Delete ALL products in database"
+           >
+              <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+           </button>
+
+           <div>
+              <input 
+                  type="file" 
+                  accept=".csv, .xlsx, .xls" 
+                  className="hidden" 
+                  ref={productFileRef}
+                  onChange={(e) => handleBulkUpload(e, "products")}
+              />
+              <button 
+                  onClick={() => productFileRef.current.click()}
+                  disabled={bulkLoading}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
+              >
+                  {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
+                  <span className="hidden sm:inline">Bulk Import</span>
+              </button>
+           </div>
+         </div>
+      </div>
+
+      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add New Batch</h3>
+        <div className="flex flex-col md:flex-row gap-4 items-start">
+          <div className="flex-1 w-full space-y-3">
+              <input value={batchCode} onChange={(e)=>setBatchCode(e.target.value.toUpperCase())} placeholder="Batch Code (e.g. BTC-2024)" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+              <input value={productName} onChange={(e)=>setProductName(e.target.value)} placeholder="Product Name" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <div className="flex flex-col items-center gap-2 w-full md:w-auto">
+              <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
+                  {imagePreview ? ( <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" /> ) : ( <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Upload</span></> )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleProductImageChange} />
+              </label>
+          </div>
+          <button onClick={handleAddProduct} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-12 md:h-32 transition-colors shadow-sm">
+            {uploading ? <Loader className="animate-spin" /> : "Verify & Add"}
+          </button>
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+         <div className="overflow-x-auto max-h-[600px]">
+           <table className="w-full text-left min-w-[600px]">
+             <thead className="bg-gray-50 border-b sticky top-0 z-10">
+               <tr>
+                 <th className="p-4 w-12">
+                   <button onClick={() => toggleSelectAll(filteredProducts)} className="text-gray-500 hover:text-gray-700">
+                     {filteredProducts.length > 0 && filteredProducts.every(p => selectedItems.has(p.id)) ? <CheckSquare size={20} /> : <Square size={20} />}
+                   </button>
+                 </th>
+                 <th className="p-4">Img</th>
+                 <th className="p-4">Code</th>
+                 <th className="p-4">Name</th>
+                 <th className="p-4">Action</th>
+               </tr>
+             </thead>
+             <tbody>
+               {filteredProducts.map(p => (
+                 <tr key={p.id} className={`border-b items-center transition-colors ${selectedItems.has(p.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                     <td className="p-4">
+                       <button onClick={() => toggleSelection(p.id)} className="text-gray-500 hover:text-blue-600">
+                         {selectedItems.has(p.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                       </button>
+                     </td>
+                     <td className="p-4">{p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover rounded-lg border" />}</td>
+                     <td className="p-4 font-mono text-blue-600 font-bold">{p.id}</td>
+                     {/* ✅ Updated Product Name Cell with Date */}
+                     <td className="p-4">
+                        <div className="flex flex-col">
+                            <span className="font-medium">{p.name}</span>
+                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock size={10}/> {formatTime(p.verificationDate)}
+                            </span>
+                        </div>
+                     </td>
+                     <td className="p-4"><button onClick={()=>handleDelete("products", p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><Trash2 size={18}/></button></td>
+                 </tr>
+               ))}
+               {filteredProducts.length === 0 && <tr><td colSpan="5" className="p-6 text-center text-gray-400">No products found.</td></tr>}
+             </tbody>
+           </table>
+         </div>
+         {hasMoreProducts && !moduleSearch && (
+            <div className="p-4 border-t flex justify-center">
+               <button onClick={() => fetchProducts(true)} disabled={loading} className="text-green-600 font-bold hover:text-green-700 disabled:opacity-50 text-sm flex items-center gap-2">
+                  {loading ? <Loader className="animate-spin" size={16}/> : "Load More Products"}
+               </button>
+            </div>
+         )}
+      </div>
+    </div>
+  );
+  };
+
+  const renderSchemes = () => {
+    // ✅ Filter Schemes Logic
+    const filteredSchemes = schemes.filter(s => 
+        s.title.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        s.category.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    return (
+    <div className="animate-fade-up">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Manage Schemes</h2>
+         
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            {/* ✅ Search Input for Schemes */}
+            <div className="relative flex-1 md:flex-none">
+                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Search active schemes..." 
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+                />
+            </div>
+
+            {selectedItems.size > 0 && (
+                <button 
+                    onClick={() => handleBulkDelete("schemes")}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                >
+                    {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                    <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+                </button>
+            )}
+
+            <button 
+                onClick={() => handleWipeCollection("schemes")}
+                className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+            >
+                <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+            </button>
+
+            <div>
+                <input 
+                    type="file" 
+                    accept=".csv, .xlsx, .xls" 
+                    className="hidden" 
+                    ref={schemeFileRef}
+                    onChange={(e) => handleBulkUpload(e, "schemes")}
+                />
+                <button 
+                    onClick={() => schemeFileRef.current.click()}
+                    disabled={bulkLoading}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
+                >
+                    {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
+                    <span className="hidden sm:inline">Import</span>
+                </button>
+            </div>
+         </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl shadow-sm border border-blue-100">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-blue-800"><Globe size={20}/> Import from Google</h3>
+          <div className="flex gap-2 mb-4">
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Search subsidies..." />
+            <button onClick={searchWebSchemes} className="bg-blue-600 text-white px-4 rounded-xl font-bold hover:bg-blue-700 transition-colors" disabled={searching}>
+              {searching ? <Loader className="animate-spin" size={18} /> : <Search size={18} />}
+            </button>
+          </div>
+          {webResults.length > 0 && (
+            <div className="grid gap-2 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-blue-200">
+              {webResults.map((item, idx) => (
+                <div key={idx} className="bg-white p-3 rounded-lg border flex justify-between items-center group hover:shadow-md transition">
+                  <div className="flex-1 overflow-hidden"><h4 className="font-bold text-xs text-gray-800 truncate">{item.title}</h4></div>
+                  <button onClick={() => importScheme(item)} className="ml-2 bg-green-100 text-green-700 p-1.5 rounded hover:bg-green-600 hover:text-white transition"><Plus size={14} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold mb-4">Post Manually</h3>
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+              <div className="space-y-3 flex-1 w-full">
+                <div className="flex gap-3">
+                  <input value={schemeTitle} onChange={(e)=>setSchemeTitle(e.target.value)} placeholder="Scheme Title" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                  <select value={schemeCategory} onChange={(e)=>setSchemeCategory(e.target.value)} className="border p-3 rounded-xl outline-none bg-white text-sm">
+                    <option value="Scheme">Scheme</option><option value="Subsidy">Subsidy</option><option value="Loan">Loan</option>
+                  </select>
+                </div>
+                <textarea value={schemeDesc} onChange={(e)=>setSchemeDesc(e.target.value)} placeholder="Description" className="border p-3 rounded-xl w-full h-20 outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+              </div>
+              
+              <div className="w-full md:w-auto flex flex-col gap-2">
+                  <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
+                      {schemeImagePreview ? ( <img src={schemeImagePreview} alt="Preview" className="w-full h-full object-cover" /> ) : ( <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Image</span></> )}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleSchemeImageChange} />
+                  </label>
+                  <button onClick={handleAddScheme} disabled={uploading} className="bg-green-600 text-white w-full py-2 rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm text-sm">
+                      {uploading ? <Loader className="animate-spin inline mr-1" size={14}/> : <Plus size={16} className="inline mr-1"/>} Post
+                  </button>
+              </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mb-4 px-2">
+         <button onClick={() => toggleSelectAll(filteredSchemes)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+            {filteredSchemes.length > 0 && filteredSchemes.every(s => selectedItems.has(s.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+            Select All on Page
+         </button>
+      </div>
+
+      <div className="grid gap-4">
+        {filteredSchemes.length === 0 ? <p className="text-center text-gray-400 py-4">No schemes match your search.</p> :
+        filteredSchemes.map(s => (
+          <div key={s.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-start transition ${selectedItems.has(s.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
+            <div className="flex gap-4">
+              <button onClick={() => toggleSelection(s.id)} className="text-gray-400 hover:text-blue-600 mt-1">
+                  {selectedItems.has(s.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+              </button>
+              {s.imageUrl && <img src={s.imageUrl} alt={s.title} className="w-16 h-16 object-cover rounded-lg border bg-gray-50" />}
+              <div>
+                <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2">{s.title} {s.category === "Imported Subsidy" && <Globe size={14} className="text-blue-500" />}</h4>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-2xl line-clamp-2">{s.description}</p>
+                <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 inline-block uppercase tracking-wider">{s.category}</span>
+              </div>
+            </div>
+            <button onClick={() => handleDelete("schemes", s.id)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={18} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  };
+
+  const renderApplications = () => {
+    // ✅ Filter Applications Logic
+    const filteredApps = applications.filter(app => 
+        app.applicantName.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        app.schemeTitle.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    // ✅ Split into Pending and History
+    const pendingApps = filteredApps.filter(app => app.status === "Pending");
+    const historyApps = filteredApps.filter(app => app.status !== "Pending");
+
+    const AppCard = ({ app }) => (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                <h3 className="text-xl font-bold text-gray-800">{app.applicantName}</h3>
+                <p className="text-gray-500 text-sm flex items-center gap-1"><Mail size={12}/> {app.applicantEmail}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                app.status === "Pending" ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
+                app.status === "Accepted" ? "bg-green-50 text-green-700 border-green-100" :
+                "bg-red-50 text-red-700 border-red-100"
+                }`}>
+                {app.status}
+                </span>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-between gap-4 items-end">
+                <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-3 text-sm text-gray-600 border border-gray-100 w-full sm:w-auto">
+                <MapPin size={18} className="text-red-500 shrink-0"/>
+                <div>
+                    <span className="font-bold block text-gray-800">Scheme: {app.schemeTitle}</span>
+                    Lat: {app.location?.lat.toFixed(4)}, Lng: {app.location?.lng.toFixed(4)}
+                    <a href={`http://googleusercontent.com/maps.google.com/?q=${app.location?.lat},${app.location?.lng}`} target="_blank" rel="noreferrer" className="text-blue-600 ml-2 underline hover:text-blue-800 font-bold">View Map</a>
+                </div>
+                </div>
+                {app.status === "Pending" && (
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <button onClick={() => handleUpdateApplicationStatus(app.id, "Accepted")} className="flex-1 sm:flex-none bg-green-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition shadow-sm"><CheckCircle size={18}/> Accept</button>
+                    <button onClick={() => handleUpdateApplicationStatus(app.id, "Rejected")} className="flex-1 sm:flex-none bg-white text-red-600 border border-red-200 px-5 py-2 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2 transition"><XCircle size={18}/> Reject</button>
+                </div>
+                )}
+            </div>
+        </div>
+    );
+
+    return (
+    <div className="animate-fade-up">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Scheme Applications</h2>
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+             {/* ✅ Search Input for Applications */}
+             <div className="relative flex-1 md:flex-none">
+                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Search applications..." 
+                    value={moduleSearch}
+                    onChange={(e) => setModuleSearch(e.target.value)}
+                    className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+                />
+             </div>
+             <button 
+                onClick={() => handleWipeCollection("applications")}
+                className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+             >
+                <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+             </button>
+             <button 
+                onClick={downloadApplicationsExcel}
+                className="flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded-xl font-bold hover:bg-green-800 transition shadow-md"
+             >
+                <Download size={18} /> <span className="hidden sm:inline">Export</span>
+             </button>
+         </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* Pending Section */}
+        <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Clock className="text-orange-500"/> Pending Applications ({pendingApps.length})</h3>
+            <div className="grid gap-4">
+                {pendingApps.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">No pending applications found.</p> : 
+                pendingApps.map(app => <AppCard key={app.id} app={app} />)}
+            </div>
+        </div>
+
+        {/* History Section ✅ */}
+        <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><History className="text-blue-500"/> Application History ({historyApps.length})</h3>
+            <div className="grid gap-4 opacity-80 hover:opacity-100 transition-opacity">
+                {historyApps.length === 0 ? <p className="text-gray-400 bg-white p-6 rounded-xl border border-dashed border-gray-300 text-center">No history yet.</p> : 
+                historyApps.map(app => <AppCard key={app.id} app={app} />)}
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+  };
+
+  const renderComplaints = () => {
+    // ✅ Filter Complaints Logic
+    const filteredComplaints = complaints.filter(c => 
+        c.subject.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        c.farmerName?.toLowerCase().includes(moduleSearch.toLowerCase()) ||
+        c.message.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    const pendingComplaints = filteredComplaints.filter(c => c.status === "Pending");
+    const resolvedComplaints = filteredComplaints.filter(c => c.status === "Resolved");
+
+    const ComplaintCard = ({ c }) => (
+        <div key={c.id} className={`bg-white p-6 rounded-2xl shadow-sm border flex flex-col gap-4 transition group relative ${selectedItems.has(c.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
+             <div className="absolute top-4 left-4">
+                <button onClick={() => toggleSelection(c.id)} className="text-gray-400 hover:text-blue-600">
+                    {selectedItems.has(c.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                </button>
+            </div>
+            <button 
+                onClick={() => handleDelete("complaints", c.id)} 
+                className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors"
+                title="Delete Complaint"
+            >
+                <Trash2 size={18} />
+            </button>
+
+            <div className="flex justify-between items-start pl-8">
+                <div className="flex-1 pr-8">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${c.status==="Resolved"?"bg-green-50 border-green-100 text-green-700":"bg-yellow-50 border-yellow-100 text-yellow-700"}`}>{c.status}</span>
+                        <h4 className="font-bold text-lg text-gray-800">{c.subject}</h4>
+                        {/* ✅ Formatted Date Added */}
+                        <span className="text-[10px] text-gray-400 font-medium ml-auto flex items-center gap-1">
+                            <Clock size={10}/> {formatTime(c.timestamp)}
+                        </span>
+                    </div>
+                    <p className="text-gray-700 text-sm mb-3 bg-gray-50 p-3 rounded-lg border border-gray-100">"{c.message}"</p>
+                    <div className="flex flex-wrap gap-4 text-xs text-gray-400 items-center">
+                        <span className="flex items-center gap-1"><Users size={12}/> {c.farmerName}</span>
+                        <span className="flex items-center gap-1"><Mail size={12}/> {c.email}</span>
+                        {c.urgency && (
+                            <span className={`flex items-center gap-1 font-bold ${c.urgency === 'High' ? 'text-red-500' : 'text-blue-500'}`}>
+                                <AlertCircle size={12}/> {c.urgency} Priority
+                            </span>
+                        )}
+                    </div>
+                    
+                    {c.aiSolution && c.status === "Pending" && (
+                        <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-100 text-xs">
+                            <span className="font-bold text-purple-700 block mb-1">🤖 AI Suggested Fix:</span>
+                            <p className="text-purple-600">{c.aiSolution}</p>
+                        </div>
+                    )}
+
+                    {c.adminReply && (
+                        <div className="mt-4 pl-4 border-l-2 border-green-500">
+                            <span className="text-xs font-bold text-green-600 uppercase">Resolved with Reply:</span>
+                            <p className="text-gray-600 text-sm mt-1">{c.adminReply}</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+            
+            {c.status === "Pending" && (
+            <div className="mt-2 pt-4 border-t border-gray-100">
+                {resolvingId === c.id ? (
+                <div className="animate-in fade-in slide-in-from-top-2">
+                    <textarea 
+                        value={replyText} 
+                        onChange={(e) => setReplyText(e.target.value)} 
+                        placeholder="Type your reply to the farmer..." 
+                        className="w-full border p-3 rounded-xl mb-3 text-sm focus:ring-2 focus:ring-green-50 outline-none h-24"
+                    />
+                    <div className="flex gap-2 justify-end">
+                        <button onClick={() => { setResolvingId(null); setReplyText(""); }} className="px-4 py-2 text-gray-500 font-bold text-sm hover:bg-gray-100 rounded-lg">Cancel</button>
+                        <button onClick={() => handleResolveComplaint(c.id, c.email, c.farmerName, c.message)} disabled={uploading} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-green-700 flex items-center gap-2">
+                            {uploading ? <Loader className="animate-spin" size={16}/> : <><Send size={16}/> Send Reply</>}
+                        </button>
+                    </div>
+                </div>
+                ) : (
+                <button onClick={() => setResolvingId(c.id)} className="bg-gray-900 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 flex items-center gap-2 transition self-start">
+                    <MessageSquare size={16}/> Reply & Resolve
+                </button>
+                )}
+            </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="animate-fade-up space-y-12">
+            <div>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                        <Clock className="text-yellow-500" /> Pending Complaints 
+                        <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">{pendingComplaints.length}</span>
+                    </h2>
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                        {/* ✅ Search Input for Complaints */}
+                        <div className="relative flex-1 md:flex-none">
+                            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                            <input 
+                                type="text" 
+                                placeholder="Search complaints..." 
+                                value={moduleSearch}
+                                onChange={(e) => setModuleSearch(e.target.value)}
+                                className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+                            />
+                        </div>
+
+                        {selectedItems.size > 0 && (
+                            <button 
+                                onClick={() => handleBulkDelete("complaints")}
+                                disabled={isDeleting}
+                                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                            >
+                                {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                                <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => handleWipeCollection("complaints")}
+                            className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+                        >
+                            <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex justify-between items-center mb-4 px-2">
+                      <button onClick={() => toggleSelectAll(pendingComplaints)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                        {pendingComplaints.length > 0 && pendingComplaints.every(c => selectedItems.has(c.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+                        Select All Pending on Page
+                      </button>
+                </div>
+
+                <div className="space-y-4">
+                    {pendingComplaints.length === 0 ? (
+                        <p className="text-gray-400 bg-white p-6 rounded-xl text-center border border-dashed border-gray-200">No pending complaints. Good job!</p>
+                    ) : (
+                        pendingComplaints.map(c => <ComplaintCard key={c.id} c={c} />)
+                    )}
+                </div>
+            </div>
+
+            <div className="border-t pt-8">
+                <h2 className="text-3xl font-bold mb-6 text-gray-800 flex items-center gap-3">
+                    <History className="text-green-500" /> Resolved History
+                    <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">{resolvedComplaints.length}</span>
+                </h2>
+                
+                <div className="flex justify-between items-center mb-4 px-2">
+                      <button onClick={() => toggleSelectAll(resolvedComplaints)} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                        {resolvedComplaints.length > 0 && resolvedComplaints.every(c => selectedItems.has(c.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+                        Select All Resolved on Page
+                      </button>
+                </div>
+
+                <div className="space-y-4 opacity-80 hover:opacity-100 transition-opacity">
+                    {resolvedComplaints.length === 0 ? (
+                        <p className="text-gray-400 bg-white p-6 rounded-xl text-center border border-dashed border-gray-200">No history yet.</p>
+                    ) : (
+                        resolvedComplaints.map(c => <ComplaintCard key={c.id} c={c} />)
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+  };
+
+  // --- 🆕 RENDER EQUIPMENT SECTION ---
+  const renderEquipment = () => {
+    // ✅ Filter Equipment Logic
+    const filteredEquipment = equipmentList.filter(e => 
+        e.name.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        e.type.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    const filteredRequests = equipmentRequests.filter(r => 
+        r.equipmentName?.toLowerCase().includes(moduleSearch.toLowerCase()) || 
+        r.requesterName?.toLowerCase().includes(moduleSearch.toLowerCase())
+    );
+
+    const pendingRequests = filteredRequests.filter(r => r.status === 'Pending');
+    const activeRentals = filteredRequests.filter(r => r.status === 'Approved');
+    // ✅ History List (Completed/Rejected)
+    const historyRentals = filteredRequests.filter(r => r.status === 'Completed' || r.status === 'Rejected');
+
+    return (
+    <div className="animate-fade-up">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Equipment Listings</h2>
+         
+         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+           {/* ✅ Search Input for Equipment */}
+           <div className="relative flex-1 md:flex-none">
+               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+               <input 
+                   type="text" 
+                   placeholder="Search equipment..." 
+                   value={moduleSearch}
+                   onChange={(e) => setModuleSearch(e.target.value)}
+                   className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+               />
+            </div>
+
+            {selectedItems.size > 0 && (
+                <button 
+                    onClick={() => handleBulkDelete("equipment")}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                >
+                    {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                    <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+                </button>
+            )}
+
+            <button 
+                onClick={() => handleWipeCollection("equipment")}
+                className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+            >
+                <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+            </button>
+
+            {/* Bulk Upload for Equipment */}
+            <div>
+                <input 
+                    type="file" 
+                    accept=".csv, .xlsx, .xls" 
+                    className="hidden" 
+                    ref={equipmentFileRef}
+                    onChange={(e) => handleBulkUpload(e, "equipment")}
+                />
+                <button 
+                    onClick={() => equipmentFileRef.current.click()}
+                    disabled={bulkLoading}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
+                >
+                    {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
+                    <span className="hidden sm:inline">Bulk Import</span>
+                </button>
+            </div>
+         </div>
+      </div>
+
+      {/* --- RENTAL MANAGEMENT SECTION --- */}
+      <div className="grid lg:grid-cols-2 gap-8 mb-12">
+        {/* Left Column: Pending Requests */}
+        <div>
+             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Clock className="text-orange-500"/> Incoming Requests</h3>
+             <div className="space-y-3">
+                 {pendingRequests.length === 0 ? <p className="text-gray-400 italic bg-white p-4 rounded-xl border border-dashed">No pending requests.</p> : 
+                   pendingRequests.map(req => (
+                     <div key={req.id} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-3">
+                         <div className="flex justify-between items-start">
+                           <div>
+                               <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                               <p className="text-xs text-gray-500">Requested by: <span className="font-bold">{req.requesterName}</span></p>
+                               <p className="text-xs text-gray-500">{req.requesterEmail}</p>
+                               <p className="text-xs text-orange-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                           </div>
+                           {/* Chat Button - ✅ NOW USES equipment ID and type */}
+                           <button 
+                               onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
+                               className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
+                               title="Chat with Farmer"
+                            >
+                               <MessageCircle size={18} />
+                           </button>
+                         </div>
+                         <div className="flex gap-2 mt-1">
+                             <button onClick={() => handleRequestAction(req, "Approved")} className="flex-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-200">Approve</button>
+                             <button onClick={() => handleRequestAction(req, "Rejected")} className="flex-1 bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-200">Reject</button>
+                         </div>
+                     </div>
+                 ))}
+             </div>
+        </div>
+
+        {/* Right Column: Active Rentals (My Bookings) */}
+        <div>
+             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><CheckCircle className="text-green-500"/> Active Rentals</h3>
+             <div className="space-y-3">
+                 {activeRentals.length === 0 ? <p className="text-gray-400 italic bg-white p-4 rounded-xl border border-dashed">No active rentals.</p> : 
+                   activeRentals.map(req => {
+                     const hasReviewed = reviews.some(r => r.requestId === req.id && r.reviewerEmail === user.email);
+                     return (
+                     <div key={req.id} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex flex-col gap-3">
+                         <div className="flex justify-between items-start">
+                           <div>
+                               <h4 className="font-bold text-gray-800">{req.equipmentName}</h4>
+                               <p className="text-xs text-gray-500">Rented by: <span className="font-bold">{req.requesterName}</span></p>
+                               <p className="text-xs text-green-600 font-medium mt-1"><Calendar size={12} className="inline mr-1"/> {req.startDate} to {req.endDate}</p>
+                           </div>
+                            {/* Chat Button - ✅ NOW USES equipment ID and type */}
+                            <button 
+                                onClick={() => { setActiveChat({ id: req.id, name: req.requesterName }); setChatType("equipment"); }}
+                                className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"
+                                title="Chat with Farmer"
+                            >
+                                <MessageCircle size={18} />
+                            </button>
+                         </div>
+                         <div className="bg-green-50 text-green-800 px-3 py-2 rounded-lg text-xs font-bold text-center">
+                             Currently Rented
+                         </div>
+                         {/* ✅ Mark Done Button */}
+                         <button onClick={() => handleRequestAction(req, "Completed")} className="w-full bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-900 transition flex items-center justify-center gap-2">
+                             <CheckSquare size={14}/> Mark Completed
+                         </button>
+                         {/* ✅ Rate Button */}
+                         {req.status === "Completed" && !hasReviewed && (
+                           <button onClick={() => setReviewRequest(req)} className="w-full border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-yellow-50 flex items-center justify-center gap-2 transition">
+                               <Star size={14}/> Rate User
+                           </button>
+                         )}
+                     </div>
+                   );
+                 })}
+             </div>
+        </div>
+      </div>
+
+      {/* ✅ Rental History Section */}
+      <div className="mb-12">
+        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><History className="text-gray-500"/> Rental History ({historyRentals.length})</h3>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-75 hover:opacity-100 transition-opacity">
+            {historyRentals.map(req => (
+                <div key={req.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-2">
+                    <div className="flex justify-between">
+                        <h4 className="font-bold text-gray-700 text-sm">{req.equipmentName}</h4>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${req.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{req.status}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">Renter: {req.requesterName}</p>
+                    <p className="text-xs text-gray-400">{req.startDate} - {req.endDate}</p>
+                </div>
+            ))}
+            {historyRentals.length === 0 && <p className="col-span-full text-gray-400 italic">No past rental history.</p>}
+        </div>
+      </div>
+
+      {/* 🆕 Manual Add Equipment Form */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20} className="text-green-600"/> Add Equipment Manually</h3>
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+             <div className="flex-1 w-full space-y-3">
+                 <div className="flex gap-3">
+                     <input value={eqName} onChange={(e)=>setEqName(e.target.value)} placeholder="Equipment Name" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+                     <select value={eqType} onChange={(e)=>setEqType(e.target.value)} className="border p-3 rounded-xl outline-none bg-white">
+                         <option value="Rent">Rent</option><option value="Sale">Sale</option>
+                     </select>
+                 </div>
+                 <div className="flex gap-3">
+                     <input type="number" value={eqPrice} onChange={(e)=>setEqPrice(e.target.value)} placeholder="Price (₹)" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+                     <input value={eqLocation} onChange={(e)=>setEqLocation(e.target.value)} placeholder="Location" className="border p-3 rounded-xl w-full outline-none focus:ring-2 focus:ring-green-500" />
+                 </div>
+             </div>
+             <div className="w-full md:w-auto">
+                 <label className="w-full md:w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 relative overflow-hidden transition-colors">
+                      {eqImagePreview ? ( <img src={eqImagePreview} alt="Preview" className="w-full h-full object-cover" /> ) : ( <><ImageIcon className="text-gray-400" size={24} /><span className="text-xs text-gray-500 mt-1">Image</span></> )}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleEqImageChange} />
+                 </label>
+             </div>
+             <button onClick={handleAddEquipment} disabled={uploading} className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-400 h-[128px] md:h-32 transition-colors shadow-sm">
+                 {uploading ? <Loader className="animate-spin" /> : "Post"}
+             </button>
+          </div>
+      </div>
+
+      <h3 className="text-lg font-bold mb-4">Your Inventory</h3>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+         {filteredEquipment.map(item => (
+            <div key={item.id} className={`bg-white p-4 rounded-2xl shadow-sm border transition flex flex-col relative ${selectedItems.has(item.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100 hover:shadow-md'}`}>
+                <button onClick={() => toggleSelection(item.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10 p-2 bg-white/80 rounded-full">
+                    {selectedItems.has(item.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                </button>
+                
+                <img src={item.imageUrl} alt={item.name} className="w-full h-40 object-cover rounded-xl mb-3 bg-gray-100"/>
+                
+                <div className="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 className="font-bold text-gray-800 line-clamp-1">{item.name}</h4>
+                        <p className="text-xs text-gray-500">{item.location}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${item.type === 'Rent' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                        {item.type}
+                    </span>
+                </div>
+                
+                <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-100">
+                    <span className="font-bold text-orange-600">₹{item.price}</span>
+                    <button onClick={() => handleDelete("equipment", item.id)} className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition">
+                        <Trash2 size={16}/>
+                    </button>
+                </div>
+            </div>
+         ))}
+         {filteredEquipment.length === 0 && <p className="col-span-full text-center py-10 text-gray-400">No equipment found matching search.</p>}
+      </div>
+
+      {/* ✅ Review Modal */}
+      {reviewRequest && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full relative text-center shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-2xl font-bold mb-2 text-slate-800">Rate Farmer</h3>
+            <p className="text-gray-500 text-sm mb-6">How was your deal with {reviewRequest.requesterName}?</p>
+            <div className="flex justify-center gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map(s => <button key={s} onClick={() => setReviewData({...reviewData, rating: s})} className="transition hover:scale-110"><Star size={32} className={s <= reviewData.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-200"}/></button>)}
+            </div>
+            <textarea placeholder="Write a comment..." className="w-full p-3 border rounded-xl h-24 mb-4 outline-none focus:ring-2 focus:ring-orange-200 resize-none" onChange={e => setReviewData({...reviewData, comment: e.target.value})}></textarea>
+            <button onClick={submitReview} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition">Submit Review</button>
+            <button onClick={() => setReviewRequest(null)} className="mt-4 text-gray-400 text-sm hover:text-gray-600">Cancel</button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex font-sans">
+       
+       {/* --- RESPONSIVE HEADER BAR --- */}
+       <div className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 h-20 flex items-center justify-between px-4 md:px-6 shadow-sm">
+          {/* Logo Area */}
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-600/30">
+                <Sprout size={24} />
+             </div>
+             <div>
+                <h1 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-none">Kisan<span className="text-green-600">Sahayak</span></h1>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden xs:block">Admin Console</span>
+             </div>
+          </div>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-4">
+             <div className="hidden md:flex flex-col items-end mr-2">
+                 <span className="text-sm font-bold text-slate-700">{user?.email}</span>
+                 <span className="text-xs text-slate-400">{new Date().toLocaleDateString()}</span>
+             </div>
+             <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
+                 <Users size={20} className="text-slate-600" />
+             </div>
+          </div>
+       </div>
+
+      {notification && (
+        <div className={`fixed top-24 right-6 z-[100] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'error' ? 'bg-red-50 border border-red-100 text-red-700' : 'bg-white border border-green-100 text-green-700'}`}>
+          {notification.type === 'error' ? <AlertCircle size={20}/> : <CheckCircle size={20}/>}
+          <span className="font-bold">{notification.message}</span>
+        </div>
+      )}
+
+      {/* --- RESPONSIVE SIDEBAR --- */}
+      
+      {/* Mobile Toggle Button (Visible only on mobile) */}
+      <button 
+        onClick={() => setIsSidebarOpen(true)}
+        className="md:hidden fixed bottom-6 left-6 z-[100] bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-95 flex items-center justify-center"
+        title="Open Admin Menu"
+      >
+        <Menu size={24} />
+      </button>
+
+      {/* Mobile Overlay (Backdrop) */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)} 
+          className="fixed inset-0 bg-black/60 z-[90] md:hidden backdrop-blur-sm transition-opacity"
+        ></div>
+      )}
+
+      {/* Sidebar Container */}
+      <div className={`
+        fixed inset-y-0 left-0 z-[100] w-64 bg-slate-900 text-white p-6 
+        transform transition-transform duration-300 ease-in-out shadow-2xl 
+        md:translate-x-0 md:fixed md:top-20 md:bottom-0 md:left-0 md:z-30 md:shadow-none
+        flex flex-col h-full md:h-[calc(100vh-5rem)] border-r border-gray-800
+        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+      `}>
+        {/* Mobile Sidebar Header */}
+        <div className="flex justify-between items-center mb-8 shrink-0 md:hidden">
+            <h2 className="text-xl font-bold text-green-400 tracking-tight flex items-center gap-2"><Package size={24}/> Menu</h2>
+            <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400 hover:text-white transition">
+              <X size={24} />
+            </button>
+        </div>
+
+        <nav className="space-y-1 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+          {[
+            { id: "products", label: "Products", icon: Package },
+            { id: "schemes", label: "Schemes", icon: ScrollText },
+            { id: "applications", label: "Applications", icon: FileText },
+            { id: "farmers", label: "Farmers", icon: Users },
+            { id: "complaints", label: "Help Desk", icon: MessageSquare },
+            { id: "market", label: "Market Prices", icon: TrendingUp },
+            { id: "equipment", label: "Equipment", icon: Tractor }, 
+            { id: "forum", label: "Community", icon: MessageCircle },
+          ].map((item) => (
+            <button 
+              key={item.id}
+              onClick={() => setActiveTab(item.id)} 
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition-all text-sm font-medium ${activeTab === item.id ? "bg-green-600 text-white shadow-lg shadow-green-900/20" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+            >
+              <item.icon size={18} /> {item.label}
+            </button>
+          ))}
+        </nav>
+        
+        <div className="pt-4 border-t border-gray-800 mt-4 shrink-0">
+            <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-sm font-bold">
+                <LogOut size={18} /> Logout
+            </button>
+        </div>
+      </div>
+
+      {/* --- MAIN CONTENT AREA --- */}
+      <div className="flex-1 px-4 py-6 md:p-8 pb-24 mt-20 md:ml-64 w-full max-w-[100vw] overflow-x-hidden min-h-screen transition-all duration-300">
+        
+        {activeTab === "products" && renderProducts()}
+        {activeTab === "schemes" && renderSchemes()}
+        {activeTab === "applications" && renderApplications()}
+        {activeTab === "complaints" && renderComplaints()}
+        {activeTab === "equipment" && renderEquipment()} 
+        {activeTab === "farmers" && (
+             <div className="animate-fade-up">
+               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Registered Farmers</h2>
+                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    {/* ✅ Search Input for Farmers */}
+                    <div className="relative flex-1 md:flex-none">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search farmers..." 
+                            value={moduleSearch}
+                            onChange={(e) => setModuleSearch(e.target.value)}
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+                        />
+                    </div>
+                    {selectedItems.size > 0 && (
+                        <button 
+                            onClick={() => handleBulkDelete("users")}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                        >
+                            {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                            <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+                        </button>
+                    )}
+                    {/* 🆕 Wipe All Button */}
+                    <button 
+                        onClick={() => handleWipeCollection("users")}
+                        className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+                    >
+                        <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+                    </button>
+                 </div>
+               </div>
+               
+               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-left min-w-[600px]">
+                        <thead className="bg-gray-50 border-b">
+                            <tr>
+                                <th className="p-4 w-12">
+                                    <button onClick={() => toggleSelectAll(farmers.filter(f => f.name?.toLowerCase().includes(moduleSearch.toLowerCase()) || f.email?.toLowerCase().includes(moduleSearch.toLowerCase())))} className="text-gray-500 hover:text-gray-700">
+                                        {farmers.length > 0 && farmers.every(f => selectedItems.has(f.id)) ? <CheckSquare size={20} /> : <Square size={20} />}
+                                    </button>
+                                </th>
+                                <th className="p-4">Name</th>
+                                <th className="p-4">Email</th>
+                                <th className="p-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                          {/* ✅ Filter Farmers */}
+                          {farmers
+                          .filter(f => f.name?.toLowerCase().includes(moduleSearch.toLowerCase()) || f.email?.toLowerCase().includes(moduleSearch.toLowerCase()))
+                          .map(f => (
+                            <tr key={f.id} className={`border-b transition-colors ${selectedItems.has(f.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                <td className="p-4">
+                                    <button onClick={() => toggleSelection(f.id)} className="text-gray-500 hover:text-blue-600">
+                                        {selectedItems.has(f.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                                    </button>
+                                </td>
+                                <td className="p-4 font-medium flex items-center gap-2"><Users size={18} className="text-green-600"/> {f.name || "Farmer"}</td>
+                                <td className="p-4 text-gray-600">{f.email}</td>
+                                <td className="p-4 flex items-center gap-2">
+                                    <button 
+                                        onClick={() => { setActiveChat({ id: f.uid || f.id, name: f.name || "Farmer" }); setChatType("general"); }} 
+                                        className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 text-xs transition"
+                                    >
+                                        <MessageSquare size={14} /> Chat
+                                    </button>
+                                    <button onClick={() => handleDelete("users", f.id)} className="inline-flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100 text-xs transition">
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                     </table>
+                   </div>
+               </div>
+             </div>
+        )}
+        
+        {activeTab === "market" && (
+            <div className="animate-fade-up">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Manage Market Prices</h2>
+                 
+                 <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    {/* ✅ Search Input for Market */}
+                    <div className="relative flex-1 md:flex-none">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search market..." 
+                            value={moduleSearch}
+                            onChange={(e) => setModuleSearch(e.target.value)}
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+                        />
+                    </div>
+                    {selectedItems.size > 0 && (
+                        <button 
+                            onClick={() => handleBulkDelete("market_prices")}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                        >
+                            {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                            <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+                        </button>
+                    )}
+
+                    {/* 🆕 Wipe All Button */}
+                    <button 
+                        onClick={() => handleWipeCollection("market_prices")}
+                        className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+                    >
+                        <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+                    </button>
+
+                    {/* 🆕 Bulk Upload Button */}
+                    <div>
+                        <input 
+                            type="file" 
+                            accept=".csv, .xlsx, .xls" 
+                            className="hidden" 
+                            ref={marketFileRef}
+                            onChange={(e) => handleBulkUpload(e, "market")}
+                        />
+                        <button 
+                            onClick={() => marketFileRef.current.click()}
+                            disabled={bulkLoading}
+                            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
+                        >
+                            {bulkLoading ? <Loader size={18} className="animate-spin"/> : <Upload size={18}/>}
+                            <span className="hidden sm:inline">Bulk Import</span>
+                        </button>
+                    </div>
+                 </div>
+              </div>
+
+              <div className={`p-6 rounded-2xl shadow-sm border mb-8 transition-colors ${editMarketId ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"}`}>
+                <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${editMarketId ? "text-orange-700" : "text-gray-800"}`}>
+                  {editMarketId ? <><Edit2 size={20}/> Editing Price</> : "Add New Price"}
+                </h3>
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <input value={marketCrop} onChange={(e)=>setMarketCrop(e.target.value)} placeholder="Crop (e.g. Wheat)" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 bg-white" />
+                        <input value={marketMandi} onChange={(e)=>setMarketMandi(e.target.value)} placeholder="Mandi" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 bg-white" />
+                        <input value={marketPrice} onChange={(e)=>setMarketPrice(e.target.value)} placeholder="Price" className="border p-3 rounded-xl flex-1 outline-none focus:ring-2 focus:ring-green-500 bg-white" />
+                        <select value={marketChange} onChange={(e)=>setMarketChange(e.target.value)} className="border p-3 rounded-xl outline-none bg-white">
+                            <option value="up">Trending Up</option><option value="down">Trending Down</option><option value="stable">Stable</option>
+                        </select>
+                    </div>
+                    {/* 🆕 Market Image Input */}
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <label className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-green-500 bg-gray-50 transition-colors">
+                            {marketImagePreview ? <img src={marketImagePreview} alt="Preview" className="w-8 h-8 rounded object-cover" /> : <ImageIcon size={20} className="text-gray-400" />}
+                            <span className="text-sm text-gray-500">{marketImagePreview ? "Change Image" : "Upload Image"}</span>
+                            <input type="file" accept="image/*" className="hidden" onChange={handleMarketImageChange} />
+                        </label>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={handleAddOrUpdateMarketPrice} disabled={uploading} className={`flex-1 sm:flex-none px-6 py-2 rounded-xl font-bold text-white transition shadow-sm ${editMarketId ? "bg-orange-500 hover:bg-orange-600" : "bg-green-600 hover:bg-green-700"}`}>
+                                {uploading ? <Loader className="animate-spin" size={18}/> : (editMarketId ? "Update" : "Add")}
+                            </button>
+                            {editMarketId && <button onClick={() => { setEditMarketId(null); setMarketCrop(""); setMarketMandi(""); setMarketPrice(""); setMarketImage(null); setMarketImagePreview(null); }} className="px-4 text-gray-500 font-bold">Cancel</button>}
+                        </div>
+                    </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4 px-2">
+                 <button onClick={() => toggleSelectAll(marketPrices.filter(m => m.crop.toLowerCase().includes(moduleSearch.toLowerCase()) || m.market.toLowerCase().includes(moduleSearch.toLowerCase())))} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                    {marketPrices.length > 0 && marketPrices.every(m => selectedItems.has(m.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+                    Select All on Page
+                 </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* ✅ Filter Market */}
+                {marketPrices
+                .filter(m => m.crop.toLowerCase().includes(moduleSearch.toLowerCase()) || m.market.toLowerCase().includes(moduleSearch.toLowerCase()))
+                .map(m => (
+                  <div key={m.id} className={`bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center relative overflow-hidden transition ${selectedItems.has(m.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.change === 'up' ? 'bg-green-500' : m.change === 'down' ? 'bg-red-500' : 'bg-gray-300'}`}></div>
+                      
+                      <button onClick={() => toggleSelection(m.id)} className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 z-10">
+                          {selectedItems.has(m.id) ? <CheckSquare size={16} className="text-blue-600"/> : <Square size={16} />}
+                      </button>
+
+                      <div className="flex items-center gap-3 pl-3">
+                          {m.imageUrl && <img src={m.imageUrl} alt={m.crop} className="w-12 h-12 rounded-full object-cover border border-gray-200" />}
+                          <div>
+                            <h4 className="font-bold text-lg text-gray-800">{m.crop}</h4>
+                            <p className="text-gray-500 text-sm">{m.market}</p>
+                          </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-green-600">{m.price}</p>
+                        {/* ✅ Formatted Date Added */}
+                        <span className="text-[10px] text-gray-400 mt-1 flex items-center justify-end gap-1">
+                            <Clock size={10}/> {formatTime(m.timestamp)}
+                        </span>
+                        <div className="flex gap-2 justify-end mt-1">
+                          <button onClick={() => startEditPrice(m)} className="text-gray-400 hover:text-blue-500 transition"><Edit2 size={16}/></button>
+                          <button onClick={() => handleDelete("market_prices", m.id)} className="text-gray-400 hover:text-red-500 transition"><Trash2 size={16}/></button>
+                        </div>
+                      </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+        )}
+
+        {activeTab === "forum" && (
+           <div className="animate-fade-up">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Community Moderation</h2>
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    {/* ✅ Search Input for Forum */}
+                    <div className="relative flex-1 md:flex-none">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search posts..." 
+                            value={moduleSearch}
+                            onChange={(e) => setModuleSearch(e.target.value)}
+                            className="pl-10 p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-green-500 w-full md:w-64 text-sm"
+                        />
+                    </div>
+                    {selectedItems.size > 0 && (
+                        <button 
+                            onClick={() => handleBulkDelete("forum_posts")}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition"
+                        >
+                            {isDeleting ? <Loader size={18} className="animate-spin"/> : <Trash2 size={18}/>}
+                            <span className="hidden sm:inline">Delete</span> ({selectedItems.size})
+                        </button>
+                    )}
+                    {/* 🆕 Wipe All Button */}
+                    <button 
+                        onClick={() => handleWipeCollection("forum_posts")}
+                        className="flex items-center gap-2 bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl font-bold hover:bg-red-200 transition"
+                    >
+                        <AlertTriangle size={18} /> <span className="hidden sm:inline">Wipe All</span>
+                    </button>
+                </div>
+             </div>
+
+             <div className="flex justify-between items-center mb-4 px-2">
+                 <button onClick={() => toggleSelectAll(forumPosts.filter(p => p.text.toLowerCase().includes(moduleSearch.toLowerCase()) || p.authorName?.toLowerCase().includes(moduleSearch.toLowerCase())))} className="flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                    {forumPosts.length > 0 && forumPosts.every(p => selectedItems.has(p.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+                    Select All on Page
+                 </button>
+             </div>
+
+             <div className="space-y-4">
+                {/* ✅ Filter Forum Posts */}
+                {forumPosts
+                .filter(p => p.text.toLowerCase().includes(moduleSearch.toLowerCase()) || p.authorName?.toLowerCase().includes(moduleSearch.toLowerCase()))
+                .map(post => (
+                   <div key={post.id} className={`bg-white p-6 rounded-2xl shadow-sm border flex flex-col md:flex-row justify-between items-start gap-4 transition ${selectedItems.has(post.id) ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-gray-100'}`}>
+                       <div className="flex items-center self-start md:self-center mr-2">
+                           <button onClick={() => toggleSelection(post.id)} className="text-gray-400 hover:text-blue-600">
+                               {selectedItems.has(post.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20} />}
+                           </button>
+                       </div>
+                       <div className="flex-1">
+                           <div className="flex items-center gap-2 mb-2">
+                               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">{post.authorName?.[0] || "U"}</div>
+                               <div>
+                                 <span className="font-bold text-gray-800 text-sm block">{post.authorName}</span>
+                                 <span className="text-xs text-gray-400">{post.authorEmail}</span>
+                               </div>
+                           </div>
+                           {post.imageUrl && <img src={post.imageUrl} alt="Post" className="h-32 w-auto rounded-lg mb-3 object-cover border bg-gray-50" />}
+                           <p className="text-gray-700 text-sm">"{post.text}"</p>
+                       </div>
+                       <button onClick={() => handleDelete("forum_posts", post.id)} className="text-red-600 bg-red-50 px-4 py-2 rounded-lg font-bold hover:bg-red-100 hover:text-red-700 transition flex items-center gap-2 text-xs">
+                           <Trash2 size={14}/> Delete Post
+                       </button>
+                   </div>
+                ))}
+             </div>
+           </div>
+        )}
+      </div>
+
+      {/* Chat Components */}
+      {activeChat && chatType === "general" && (
+        <ChatInterface 
+          chatId={`chat_${activeChat.id}`} 
+          receiverName={activeChat.name}
+          isUserAdmin={true} 
+          onClose={() => { setActiveChat(null); setChatType(null); }}
+        />
+      )}
+
+      {activeChat && chatType === "equipment" && (
+        <EquipmentChat 
+          chatId={activeChat.id} 
+          receiverName={activeChat.name}
+          currentUserEmail={user.email} 
+          onClose={() => { setActiveChat(null); setChatType(null); }}
+        />
+      )}
+
+    </div>
+  );
+};
+
+export default AdminDashboard;
