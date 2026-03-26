@@ -45,8 +45,7 @@ const ContactSupport = () => {
     setAnalyzing(true);
     try {
       const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-      // ✅ STRICTLY using gemini-3.1-flash as ordered
-      const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `
         User Complaint: "${message}"

@@ -76,8 +76,7 @@ const Weather = () => {
         Do not include markdown or explanations, just the JSON array.
       `;
 
-      // STRICTLY using gemini-3.1-flash as requested
-      const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const result = await model.generateContent(prompt);
       const response = await result.response;

@@ -137,7 +137,7 @@ const CropDoctor = () => {
       const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
       
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-3.1-flash",
+        model: "gemini-1.5-flash",
         safetySettings: [
           { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
           { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
